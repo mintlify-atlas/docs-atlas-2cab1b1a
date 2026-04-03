@@ -1,0 +1,122 @@
+---
+title: "PHP SDK"
+description: "Send webhooks and verify signatures with the official Svix PHP library."
+---
+
+## Installation
+
+```bash
+composer require svix/svix
+```
+
+The package is published as `svix/svix` on Packagist. Requires PHP 5.6 or later and the `json` extension.
+
+After installation, autoload dependencies:
+
+```php
+require __DIR__ . '/vendor/autoload.php';
+```
+
+## Initializing the client
+
+```php
+use Svix\Svix;
+
+$svix = new Svix("AUTH_TOKEN");
+```
+
+The client automatically detects the region suffix on your token (`.us`, `.eu`, `.in`, `.ca`, `.au`) and routes requests to the correct regional API endpoint. Pass a `SvixOptions` to override:
+
+```php
+use Svix\Svix;
+use Svix\SvixOptions;
+
+$options = new SvixOptions(serverUrl: "https://api.eu.svix.com");
+$svix = new Svix("AUTH_TOKEN", $options);
+```
+
+## Sending a webhook
+
+<Steps>
+
+### Create an application
+
+```php
+use Svix\Models\ApplicationIn;
+
+$app = $svix->application->create(new ApplicationIn(name: "my-app"));
+echo $app->id; // app_...
+```
+
+### Send a message
+
+```php
+use Svix\Models\MessageIn;
+
+$msg = $svix->message->create(
+    $app->id,
+    new MessageIn(
+        eventType: "invoice.paid",
+        payload: [
+            "type"      => "invoice.paid",
+            "invoiceId" => "invoice_123",
+            "amount"    => 9900,
+        ]
+    )
+);
+echo $msg->id; // msg_...
+```
+
+</Steps>
+
+## Verifying a webhook
+
+```php
+use Svix\Webhook;
+use Svix\Exception\WebhookVerificationException;
+
+$wh = new Webhook("whsec_<your-endpoint-secret>");
+
+// In a controller — pass the raw body and a headers array:
+$payload = file_get_contents('php://input');
+$headers = [
+    'svix-id'        => $_SERVER['HTTP_SVIX_ID']        ?? '',
+    'svix-timestamp' => $_SERVER['HTTP_SVIX_TIMESTAMP'] ?? '',
+    'svix-signature' => $_SERVER['HTTP_SVIX_SIGNATURE'] ?? '',
+];
+
+try {
+    $data = $wh->verify($payload, $headers);
+    // $data is an associative array parsed from the verified JSON body
+} catch (WebhookVerificationException $e) {
+    http_response_code(400);
+    exit($e->getMessage());
+}
+```
+
+`verify` returns the decoded JSON payload as an associative array on success, and throws `WebhookVerificationException` on failure.
+
+<Warning>
+  Pass the **raw, unmodified** request body to `verify`. The body must be read
+  before any JSON decoding.
+</Warning>
+
+## Available client properties
+
+| Property                        | Description                                        |
+| :------------------------------ | :------------------------------------------------- |
+| `$svix->application`            | Create and manage applications                     |
+| `$svix->authentication`         | Generate dashboard access tokens                   |
+| `$svix->backgroundTask`         | Track long-running background jobs                 |
+| `$svix->connector`              | Manage connectors                                  |
+| `$svix->endpoint`               | Create, update, and delete webhook endpoints       |
+| `$svix->environment`            | Import and export environment configuration        |
+| `$svix->eventType`              | Manage event type schemas                          |
+| `$svix->health`                 | Check API health                                   |
+| `$svix->ingest`                 | Manage ingest sources                              |
+| `$svix->integration`            | Manage third-party integrations                    |
+| `$svix->message`                | Send webhook messages                              |
+| `$svix->messageAttempt`         | Inspect and retry delivery attempts                |
+| `$svix->operationalWebhook`     | Subscribe to Svix operational events               |
+| `$svix->statistics`             | Aggregate usage statistics                         |
+| `$svix->streaming`              | Manage event streams                               |

@@ -1,0 +1,405 @@
+---
+title: "Event types"
+description: "Define and manage the event types your platform sends as webhooks."
+---
+
+**Event types** describe the categories of events your platform emits. Every message sent through Svix must reference an event type. Endpoints can subscribe to specific event types to receive only the webhooks they care about.
+
+Event types are **organization-wide** — they are not scoped to individual applications. Define them once and reference them when sending messages to any application.
+
+## Naming conventions
+
+Event type names use dot-notation with the format `resource.action`. This makes names predictable and easy to filter.
+
+<CardGroup cols={2}>
+  <Card title="Good names">
+    - `user.created`
+    - `invoice.payment_failed`
+    - `subscription.cancelled`
+    - `order.item.shipped`
+  </Card>
+  <Card title="Avoid">
+    - `userCreated` (camelCase — no dots)
+    - `USER_CREATED` (all caps)
+    - `created` (no resource prefix)
+    - `user-created` (hyphens instead of dots)
+  </Card>
+</CardGroup>
+
+<Tip>
+  Use consistent resource names across all your event types. If you have both
+  `user.created` and `account.created`, make sure "user" and "account" are
+  distinct concepts — not two names for the same thing.
+</Tip>
+
+## Creating an event type
+
+<Steps>
+  <Step title="Define the event type">
+    At minimum, provide a `name` and a `description`. Optionally attach a JSON
+    Schema to `schemas` so consumers know the payload shape.
+
+    <CodeGroup>
+
+    ```typescript typescript
+    import { Svix } from "svix";
+
+    const svix = new Svix("YOUR_AUTH_TOKEN");
+
+    const eventType = await svix.eventType.create({
+      name: "user.created",
+      description: "Fired when a new user account is created.",
+      schemas: {
+        "1": {
+          type: "object",
+          properties: {
+            userId: { type: "string" },
+            email: { type: "string", format: "email" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+          required: ["userId", "email", "createdAt"],
+        },
+      },
+    });
+    ```
+
+    ```python python
+    from svix.api import SvixAsync
+    from svix.models import EventTypeIn
+
+    svix = SvixAsync("YOUR_AUTH_TOKEN")
+
+    event_type = await svix.event_type.create(
+        EventTypeIn(
+            name="user.created",
+            description="Fired when a new user account is created.",
+            schemas={
+                "1": {
+                    "type": "object",
+                    "properties": {
+                        "userId": {"type": "string"},
+                        "email": {"type": "string", "format": "email"},
+                        "createdAt": {"type": "string", "format": "date-time"},
+                    },
+                    "required": ["userId", "email", "createdAt"],
+                }
+            },
+        )
+    )
+    ```
+
+    ```go go
+    import (
+        svix "github.com/svix/svix-webhooks/go"
+        "github.com/svix/svix-webhooks/go/models"
+    )
+
+    svixClient, _ := svix.New("YOUR_AUTH_TOKEN", nil)
+
+    eventType, err := svixClient.EventType.Create(
+        ctx,
+        models.EventTypeIn{
+            Name:        "user.created",
+            Description: "Fired when a new user account is created.",
+            Schemas: map[string]interface{}{
+                "1": map[string]interface{}{
+                    "type": "object",
+                    "properties": map[string]interface{}{
+                        "userId":    map[string]interface{}{"type": "string"},
+                        "email":     map[string]interface{}{"type": "string", "format": "email"},
+                        "createdAt": map[string]interface{}{"type": "string", "format": "date-time"},
+                    },
+                    "required": []string{"userId", "email", "createdAt"},
+                },
+            },
+        },
+        nil,
+    )
+    ```
+
+    </CodeGroup>
+  </Step>
+</Steps>
+
+<Note>
+  The `schemas` field is a map of version strings to JSON Schema objects. Using
+  versioned schemas (e.g., `"1"`, `"2"`) lets you evolve the shape of an event
+  without breaking existing consumers.
+</Note>
+
+## Listing event types
+
+<CodeGroup>
+
+```typescript typescript
+const eventTypes = await svix.eventType.list({ limit: 50 });
+
+for (const et of eventTypes.data) {
+  console.log(et.name, et.description);
+}
+```
+
+```python python
+from svix.api import EventTypeListOptions
+
+event_types = await svix.event_type.list(EventTypeListOptions(limit=50))
+
+for et in event_types.data:
+    print(et.name, et.description)
+```
+
+```go go
+limit := uint64(50)
+eventTypes, err := svixClient.EventType.List(ctx, &svix.EventTypeListOptions{
+    Limit: &limit,
+})
+
+for _, et := range eventTypes.Data {
+    fmt.Println(et.Name, et.Description)
+}
+```
+
+</CodeGroup>
+
+To include schemas in the list response, pass `withContent: true`:
+
+<CodeGroup>
+
+```typescript typescript
+const eventTypes = await svix.eventType.list({ withContent: true });
+```
+
+```python python
+event_types = await svix.event_type.list(EventTypeListOptions(with_content=True))
+```
+
+```go go
+withContent := true
+eventTypes, err := svixClient.EventType.List(ctx, &svix.EventTypeListOptions{
+    WithContent: &withContent,
+})
+```
+
+</CodeGroup>
+
+### List options
+
+<ResponseField name="limit" type="number">
+  Maximum number of event types to return per page.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor from a previous response used to fetch the next page.
+</ResponseField>
+
+<ResponseField name="withContent" type="boolean">
+  When `true`, the full event type including schemas is included in the response.
+  Defaults to `false` to reduce response size.
+</ResponseField>
+
+<ResponseField name="includeArchived" type="boolean">
+  When `true`, archived (soft-deleted) event types are included in the response.
+</ResponseField>
+
+## Getting an event type
+
+<CodeGroup>
+
+```typescript typescript
+const eventType = await svix.eventType.get("user.created");
+```
+
+```python python
+event_type = await svix.event_type.get("user.created")
+```
+
+```go go
+eventType, err := svixClient.EventType.Get(ctx, "user.created")
+```
+
+</CodeGroup>
+
+## Updating an event type
+
+Use `update` to replace all fields, or `patch` to change specific fields only.
+
+<CodeGroup>
+
+```typescript typescript
+// Full update — replaces description and schemas
+await svix.eventType.update("user.created", {
+  description: "Fired when a new user account is created or imported.",
+  schemas: {
+    "1": {
+      type: "object",
+      properties: {
+        userId: { type: "string" },
+        email: { type: "string", format: "email" },
+        createdAt: { type: "string", format: "date-time" },
+        source: { type: "string", enum: ["signup", "import"] },
+      },
+      required: ["userId", "email", "createdAt"],
+    },
+  },
+});
+
+// Partial update — only updates the description
+await svix.eventType.patch("user.created", {
+  description: "Fired when a new user account is created or imported.",
+});
+```
+
+```python python
+from svix.models import EventTypeUpdate, EventTypePatch
+
+# Full update
+await svix.event_type.update(
+    "user.created",
+    EventTypeUpdate(
+        description="Fired when a new user account is created or imported.",
+    ),
+)
+
+# Partial update
+await svix.event_type.patch(
+    "user.created",
+    EventTypePatch(
+        description="Fired when a new user account is created or imported.",
+    ),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+// Full update
+_, err = svixClient.EventType.Update(
+    ctx,
+    "user.created",
+    models.EventTypeUpdate{
+        Description: "Fired when a new user account is created or imported.",
+    },
+)
+
+// Partial update
+desc := "Fired when a new user account is created or imported."
+_, err = svixClient.EventType.Patch(
+    ctx,
+    "user.created",
+    models.EventTypePatch{
+        Description: &desc,
+    },
+)
+```
+
+</CodeGroup>
+
+## Archiving (deleting) an event type
+
+Deleting an event type **archives** it by default — it is hidden from listings and cannot be used in new messages, but existing endpoint filters that reference it are preserved.
+
+<CodeGroup>
+
+```typescript typescript
+// Archive (soft-delete)
+await svix.eventType.delete("user.created");
+
+// Permanently expunge
+await svix.eventType.delete("user.created", { expunge: true });
+```
+
+```python python
+from svix.api import EventTypeDeleteOptions
+
+# Archive (soft-delete)
+await svix.event_type.delete("user.created")
+
+# Permanently expunge
+await svix.event_type.delete(
+    "user.created",
+    EventTypeDeleteOptions(expunge=True),
+)
+```
+
+```go go
+// Archive (soft-delete)
+err = svixClient.EventType.Delete(ctx, "user.created", nil)
+
+// Permanently expunge
+expunge := true
+err = svixClient.EventType.Delete(ctx, "user.created", &svix.EventTypeDeleteOptions{
+    Expunge: &expunge,
+})
+```
+
+</CodeGroup>
+
+<Warning>
+  Passing `expunge: true` permanently removes the event type and cannot be
+  undone. Archived event types can be restored by calling `create` again with the
+  same name.
+</Warning>
+
+## Importing from an OpenAPI spec
+
+If you already maintain an OpenAPI spec with `webhooks` or `x-webhooks` entries, you can import them directly into Svix.
+
+<CodeGroup>
+
+```typescript typescript
+const result = await svix.eventType.importOpenapi({
+  spec: myOpenApiSpecObject,
+});
+```
+
+```python python
+from svix.models import EventTypeImportOpenApiIn
+
+result = await svix.event_type.import_openapi(
+    EventTypeImportOpenApiIn(spec=my_openapi_spec_dict)
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+result, err := svixClient.EventType.ImportOpenapi(
+    ctx,
+    models.EventTypeImportOpenApiIn{Spec: myOpenApiSpec},
+    nil,
+)
+```
+
+</CodeGroup>
+
+The importer converts all webhooks defined in `webhooks` or `x-webhooks` at the top level of the spec. Any archived event types with matching names are automatically unarchived.
+
+## Event type fields
+
+<ResponseField name="name" type="string" required>
+  The event type's unique name in dot-notation (e.g., `user.created`). Cannot be
+  changed after creation.
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  A human-readable description of when this event fires and what it represents.
+</ResponseField>
+
+<ResponseField name="schemas" type="object">
+  A map of version strings to JSON Schema objects that describe the payload
+  shape. Example key: `"1"`.
+</ResponseField>
+
+<ResponseField name="groupName" type="string">
+  An optional group label to organize related event types in the dashboard.
+</ResponseField>
+
+<ResponseField name="deprecated" type="boolean">
+  When `true`, the event type is marked as deprecated. New messages can still be
+  sent with it, but consumers are signaled to stop relying on it.
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  When `true`, the event type has been soft-deleted and cannot be used in new
+  messages.
+</ResponseField>

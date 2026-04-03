@@ -1,0 +1,90 @@
+---
+title: "Authentication"
+description: "How to generate and use JWT tokens to authenticate with the svix-server API."
+---
+
+The svix-server API uses JWT (JSON Web Token) bearer authentication. Every request must include a valid token signed with the configured `jwt_secret`.
+
+## Sending the token
+
+Pass the token in the `Authorization` header:
+
+```
+Authorization: Bearer <JWT_TOKEN_HERE>
+```
+
+## Generating a token
+
+The easiest way to generate a valid token is with the built-in CLI command:
+
+```bash
+svix-server jwt generate
+```
+
+This produces a signed JWT using the `jwt_secret` and `jwt_algorithm` values from the server configuration.
+
+## Token structure
+
+All tokens must use `org_23rb8YdGqMT0qIzpgGwdXfHirMu` as the `sub` claim. The following is an example JWT for the secret `x`, shown decoded so you can see the required structure:
+
+```js
+// JWT:
+// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2NTUxNDA2MzksImV4cCI6MTk3MDUwMDYzOSwibmJmIjoxNjU1MTQwNjM5LCJpc3MiOiJzdml4LXNlcnZlciIsInN1YiI6Im9yZ18yM3JiOFlkR3FNVDBxSXpwZ0d3ZFhmSGlyTXUifQ.USMuIPrqsZTSj3kyWupCzJO9eyQioBzh5alGlvRbrbA
+
+// Decoded payload:
+{
+  "iat": 1655140639,
+  "exp": 1970500639,
+  "nbf": 1655140639,
+  "iss": "svix-server",
+  "sub": "org_23rb8YdGqMT0qIzpgGwdXfHirMu"
+}
+```
+
+<Warning>
+The `sub` field must be exactly `org_23rb8YdGqMT0qIzpgGwdXfHirMu`. Tokens with any other subject will be rejected.
+</Warning>
+
+## Generating your own JWT
+
+If you need to generate tokens programmatically (for example, in a CI pipeline or a custom management script), create a JWT that satisfies these requirements:
+
+- **Algorithm:** must match `jwt_algorithm` in the server config (default: `HS256`)
+- **Secret:** must match `jwt_secret` in the server config
+- **`sub` claim:** must be `org_23rb8YdGqMT0qIzpgGwdXfHirMu`
+- **`iss` claim:** `svix-server`
+- **`iat` / `nbf` / `exp`:** standard JWT time claims
+
+<Note>
+The README notes `H256` as the algorithm name, but the correct value for both the config and JWT header is `HS256`.
+</Note>
+
+## Choosing a JWT algorithm
+
+The default signing algorithm is `HS256`. You can switch to a different algorithm by setting `jwt_algorithm` in your configuration:
+
+| Algorithm | Type | Notes |
+|-----------|------|-------|
+| `HS256` | Symmetric (default) | HMAC with SHA-256 |
+| `HS384` | Symmetric | HMAC with SHA-384 |
+| `HS512` | Symmetric | HMAC with SHA-512 |
+| `RS256` | Asymmetric | RSA with SHA-256 |
+| `RS384` | Asymmetric | RSA with SHA-384 |
+| `RS512` | Asymmetric | RSA with SHA-512 |
+| `EdDSA` | Asymmetric | Ed25519 |
+
+<CodeGroup>
+```toml config.toml
+jwt_algorithm = "HS256"
+jwt_secret = "your-secret-here"
+```
+
+```bash Environment variables
+SVIX_JWT_ALGORITHM="HS256"
+SVIX_JWT_SECRET="your-secret-here"
+```
+</CodeGroup>
+
+<Tip>
+When using asymmetric algorithms (`RS256`, `RS384`, `RS512`, `EdDSA`), `jwt_secret` should be the private key. Asymmetric algorithms allow you to verify tokens without exposing the signing key.
+</Tip>

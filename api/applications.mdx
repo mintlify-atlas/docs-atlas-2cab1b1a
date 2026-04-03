@@ -1,0 +1,222 @@
+---
+title: "Applications"
+description: "Create and manage Svix applications. Each application represents a user or tenant in your platform."
+---
+
+Applications are the top-level resource in Svix. Each application typically corresponds to one of your customers or tenants. Endpoints, messages, and event subscriptions all belong to an application.
+
+## List applications
+
+<ParamField query="limit" type="integer">
+  Maximum number of items to return.
+</ParamField>
+
+<ParamField query="iterator" type="string">
+  Pagination cursor returned from a prior request. Pass this to retrieve the next page.
+</ParamField>
+
+<ParamField query="order" type="string">
+  Sort order. One of `ascending` or `descending`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Accept: application/json"
+```
+
+```bash CLI
+svix application list --limit 10
+```
+
+</CodeGroup>
+
+**`GET /api/v1/app/`**
+
+Returns a paginated list of all applications in the organization.
+
+<ResponseField name="data" type="array" required>
+  Array of application objects.
+</ResponseField>
+
+<ResponseField name="done" type="boolean" required>
+  `true` when there are no more pages.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor for the next page of results.
+</ResponseField>
+
+<ResponseField name="prevIterator" type="string">
+  Cursor for the previous page of results.
+</ResponseField>
+
+---
+
+## Create application
+
+**`POST /api/v1/app/`**
+
+Create a new application.
+
+<ParamField body="name" type="string" required>
+  The application's display name. Minimum length: 1 character.
+</ParamField>
+
+<ParamField body="uid" type="string">
+  Optional custom unique identifier for the application. Must match `^[a-zA-Z0-9\-_.]+$`. Maximum 256 characters.
+</ParamField>
+
+<ParamField body="throttleRate" type="integer">
+  Maximum messages per second to send to this application's endpoints. Outgoing messages are throttled to this rate.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value string metadata to attach to the application.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/app/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My first application", "uid": "unique-app-identifier"}'
+```
+
+```bash CLI
+svix application create '{"name": "My first application", "uid": "unique-app-identifier"}'
+```
+
+</CodeGroup>
+
+<ResponseField name="id" type="string" required>
+  The application's unique ID, e.g. `app_1srOrx2ZWZBpBUvZwXKQmoEYga2`.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  The application's display name.
+</ResponseField>
+
+<ResponseField name="uid" type="string">
+  The application's custom unique identifier, if set.
+</ResponseField>
+
+<ResponseField name="throttleRate" type="integer">
+  The configured message throttle rate in messages per second.
+</ResponseField>
+
+<ResponseField name="metadata" type="object" required>
+  Key-value metadata attached to the application.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of when the application was created.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 timestamp of the last update.
+</ResponseField>
+
+---
+
+## Get application
+
+**`GET /api/v1/app/{app_id}/`**
+
+Retrieve a single application by its ID or UID.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix application get app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns the same fields as [Create application](#create-application).
+
+---
+
+## Update application
+
+**`PUT /api/v1/app/{app_id}/`**
+
+Update an existing application. This is a full replacement — all fields must be provided.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  The updated display name.
+</ParamField>
+
+<ParamField body="uid" type="string">
+  Updated custom unique identifier.
+</ParamField>
+
+<ParamField body="throttleRate" type="integer">
+  Updated message throttle rate (messages per second).
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Updated key-value metadata.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X PUT https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Renamed application"}'
+```
+
+```bash CLI
+svix application update app_1srOrx2ZWZBpBUvZwXKQmoEYga2 '{"name": "Renamed application"}'
+```
+
+</CodeGroup>
+
+---
+
+## Delete application
+
+**`DELETE /api/v1/app/{app_id}/`**
+
+Permanently delete an application and all its associated data.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix application delete app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns `204 No Content` on success.
+
+<Warning>
+  Deleting an application is irreversible. All endpoints, messages, and attempts associated with the application will also be deleted.
+</Warning>

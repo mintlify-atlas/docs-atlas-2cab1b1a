@@ -1,0 +1,135 @@
+---
+title: "Java SDK"
+description: "Send webhooks and verify signatures with the official Svix Java library."
+---
+
+## Installation
+
+<CodeGroup>
+
+```xml Maven
+<dependency>
+  <groupId>com.svix</groupId>
+  <artifactId>svix</artifactId>
+  <version>1.90.0</version>
+  <scope>compile</scope>
+</dependency>
+```
+
+```groovy Gradle
+implementation "com.svix:svix:1.90.0"
+```
+
+</CodeGroup>
+
+The artifact is published to Maven Central as `com.svix:svix`. Requires Java 1.8 or later.
+
+<Note>
+  The Java SDK is synchronous. If you need coroutine support, see the Kotlin SDK
+  (`com.svix.kotlin:svix-kotlin` on Maven Central).
+</Note>
+
+## Initializing the client
+
+```java
+import com.svix.Svix;
+
+Svix svix = new Svix("AUTH_TOKEN");
+```
+
+The client automatically detects the region suffix on your token (`.us`, `.eu`, `.in`, `.ca`, `.au`) and routes requests to the correct regional API endpoint. Override it with `SvixOptions`:
+
+```java
+import com.svix.Svix;
+import com.svix.SvixOptions;
+
+SvixOptions options = new SvixOptions();
+options.setServerUrl("https://api.eu.svix.com");
+
+Svix svix = new Svix("AUTH_TOKEN", options);
+```
+
+## Sending a webhook
+
+<Steps>
+
+### Create an application
+
+```java
+import com.svix.models.ApplicationIn;
+import com.svix.models.ApplicationOut;
+
+ApplicationOut app = svix.getApplication().create(
+    new ApplicationIn().name("my-app")
+);
+System.out.println(app.getId()); // app_...
+```
+
+### Send a message
+
+```java
+import com.svix.models.MessageIn;
+import com.svix.models.MessageOut;
+
+Map<String, Object> payload = new HashMap<>();
+payload.put("type", "invoice.paid");
+payload.put("invoiceId", "invoice_123");
+payload.put("amount", 9900);
+
+MessageOut msg = svix.getMessage().create(
+    app.getId(),
+    new MessageIn()
+        .eventType("invoice.paid")
+        .payload(payload)
+);
+System.out.println(msg.getId()); // msg_...
+```
+
+</Steps>
+
+## Verifying a webhook
+
+```java
+import com.svix.Webhook;
+import com.svix.exceptions.WebhookVerificationException;
+import java.net.http.HttpHeaders;
+
+Webhook wh = new Webhook("whsec_<your-endpoint-secret>");
+
+// In a servlet or Spring controller:
+try {
+    HttpHeaders headers = request.headers();
+    wh.verify(requestBody, headers);
+    // payload is verified — handle it
+} catch (WebhookVerificationException e) {
+    // return 400 to the caller
+    response.setStatus(400);
+}
+```
+
+<Warning>
+  Pass the **raw, unmodified** request body string to `verify`. The verifier
+  reads `svix-id`, `svix-timestamp`, and `svix-signature` from `HttpHeaders`.
+</Warning>
+
+`Webhook` also accepts raw bytes via `new Webhook(byte[] secret)` for cases where you hold the decoded secret.
+
+## Available client properties
+
+Access API resources through getter methods on the `Svix` class:
+
+| Method                              | Description                                        |
+| :---------------------------------- | :------------------------------------------------- |
+| `svix.getApplication()`             | Create and manage applications                     |
+| `svix.getAuthentication()`          | Generate dashboard access tokens                   |
+| `svix.getBackgroundTask()`          | Track long-running background jobs                 |
+| `svix.getEndpoint()`                | Create, update, and delete webhook endpoints       |
+| `svix.getEventType()`               | Manage event type schemas                          |
+| `svix.getIngest()`                  | Manage ingest sources                              |
+| `svix.getIntegration()`             | Manage third-party integrations                    |
+| `svix.getMessage()`                 | Send webhook messages                              |
+| `svix.getMessageAttempt()`          | Inspect and retry delivery attempts                |
+| `svix.getOperationalWebhook()`      | Subscribe to Svix operational events               |
+| `svix.getOperationalWebhookEndpoint()` | Manage operational webhook endpoints            |
+| `svix.getStatistics()`              | Aggregate usage statistics                         |
+| `svix.getStreaming()`               | Manage event streams                               |

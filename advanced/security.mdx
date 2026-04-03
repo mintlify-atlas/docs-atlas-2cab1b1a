@@ -1,0 +1,113 @@
+---
+title: "Security"
+description: "Webhook signature schemes, replay attack prevention, and SSRF protection in Svix."
+---
+
+Svix signs all webhook messages before sending to guarantee their integrity and authenticity. This page covers the two supported signature schemes, how replay attacks are prevented, and how to guard against SSRF.
+
+## Signature schemes
+
+<CardGroup cols={2}>
+  <Card title="Symmetric (HMAC-SHA256)" icon="key">
+    Uses a pre-shared secret per endpoint, prefixed with `whsec_`. Approximately **50x faster** for signing and **160x faster** for verifying. Recommended for most use cases.
+  </Card>
+  <Card title="Asymmetric (Ed25519)" icon="lock">
+    Uses a public/private key pair — the private key is prefixed with `whsk_`, the public key with `whpk_`. Only the public key needs to be shared with consumers.
+  </Card>
+</CardGroup>
+
+<Note>
+Symmetric signatures are the default and recommended choice. They are simpler to verify and significantly faster. Use asymmetric signatures only when sharing a pre-shared secret with each endpoint consumer is not feasible.
+</Note>
+
+### Symmetric signatures
+
+Symmetric signatures use HMAC-SHA256 with a per-endpoint secret. Secrets follow the format:
+
+```
+whsec_51TKyHBy5KFY1Ab98GQ8V60BkWnejkWy
+```
+
+No additional configuration is required — this is the Svix default (`hmac256`).
+
+### Asymmetric signatures
+
+Asymmetric signatures use the Ed25519 algorithm. Svix constructs the signed message `m` the same way as for symmetric signatures, then signs it with `ed25519(m)`.
+
+#### Configuring the default signature type
+
+To make all newly created endpoints default to asymmetric (Ed25519) keys, set the following in `config.toml`:
+
+```toml
+default_signature_type = "ed25519"
+```
+
+<Note>
+This setting only affects newly generated endpoint secrets. Existing endpoints continue to sign with the key type they were created with.
+</Note>
+
+You can still override the default on a per-endpoint basis by explicitly setting a key:
+
+- **Symmetric key**: set the endpoint secret to a value prefixed with `whsec_`
+  ```
+  whsec_51TKyHBy5KFY1Ab98GQ8V60BkWnejkWy
+  ```
+- **Asymmetric key**: set the endpoint secret to a base64-encoded Ed25519 private key prefixed with `whsk_`
+  ```
+  whsk_6Xb/dCcHpPea21PS1N9VY/NZW723CEc77N4rJCubMbfVKIDij2HKpMKkioLlX0dRqSKJp4AJ6p9lMicMFs6Kvg==
+  ```
+
+The expected private key structure is: `whsk_${base64(private_key + public_key)}`.
+
+#### Generating a key pair
+
+Use the built-in CLI command to generate a new Ed25519 key pair:
+
+```bash
+svix-server asymmetric-key generate
+```
+
+Example output:
+
+```
+Secret key: whsk_6Xb/dCcHpPea21PS1N9VY/NZW723CEc77N4rJCubMbfVKIDij2HKpMKkioLlX0dRqSKJp4AJ6p9lMicMFs6Kvg==
+Public key: whpk_1SiA4o9hyqTCpIqC5V9HUakiiaeACeqfZTInDBbOir4=
+```
+
+Share the `whpk_` public key with your webhook consumers so they can verify incoming webhooks. Keep the `whsk_` private key secret.
+
+---
+
+## Replay attack prevention
+
+Every webhook Svix sends includes a `svix-timestamp` header containing the Unix timestamp at which the message was sent. When verifying a webhook signature, consumers should check that the timestamp is recent — Svix clients enforce a **5-minute tolerance** by default.
+
+<Warning>
+Always verify the timestamp when validating webhook signatures. Accepting old timestamps opens your endpoint to replay attacks where an attacker resends a previously captured valid webhook.
+</Warning>
+
+This applies to both symmetric and asymmetric verification. The [verifying payloads documentation](https://docs.svix.com/receiving/verifying-payloads/why) covers this in more detail.
+
+---
+
+## SSRF protection
+
+To prevent Server-Side Request Forgery (SSRF) attacks, Svix blocks outbound webhook delivery to internal and private IP addresses by default.
+
+If your use case requires delivering webhooks to internal addresses — for example, when Svix is deployed inside a private network — you can whitelist specific subnets using the `whitelist_subnets` configuration option.
+
+```toml
+# config.toml
+# Accepts an array of CIDR-notation subnets
+whitelist_subnets = ["127.0.0.1/32", "172.17.0.0/16", "192.168.0.0/16"]
+```
+
+Or via environment variable:
+
+```bash
+SVIX_WHITELIST_SUBNETS="127.0.0.1/32,172.17.0.0/16,192.168.0.0/16"
+```
+
+<Warning>
+Allowing endpoints in private IP space is a security risk. Only enable this if you are running Svix in a fully internal or testing environment.
+</Warning>

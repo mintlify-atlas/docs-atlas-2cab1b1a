@@ -1,0 +1,103 @@
+---
+title: "Operational Webhooks"
+description: "Receive server-side notifications when important events occur in your Svix instance."
+---
+
+Operational webhooks are webhooks that the Svix server sends *to you* to notify you of important events happening within your instance — such as an endpoint being disabled or all delivery attempts for a message being exhausted.
+
+They work by using Svix itself behind the scenes, managed by a special service account with the ID `org_00000000000SvixManagement00`.
+
+## Supported event types
+
+| Event | Description |
+|---|---|
+| `endpoint.created` | An endpoint was created |
+| `endpoint.deleted` | An endpoint was deleted |
+| `endpoint.disabled` | An endpoint was disabled after repeated failures |
+| `endpoint.updated` | An endpoint was updated |
+| `message.attempt.exhausted` | All delivery attempts for a message have been exhausted |
+| `message.attempt.failing` | A message delivery is failing (but attempts remain) |
+| `message.attempt.recovered` | A previously failing message was delivered successfully |
+
+A full list of event types and their payload schemas is available in the [API reference](https://api.svix.com/docs#tag/Webhooks).
+
+## Enabling operational webhooks
+
+<Steps>
+  <Step title="Set the operational_webhook_address config">
+    In your `config.toml`, point the `operational_webhook_address` at your Svix server. The most common value is `http://127.0.0.1:8071`, but adjust this to match your deployment.
+
+    ```toml
+    operational_webhook_address = "http://127.0.0.1:8071"
+    ```
+
+    Or via environment variable:
+
+    ```bash
+    SVIX_OPERATIONAL_WEBHOOK_ADDRESS="http://127.0.0.1:8071"
+    ```
+
+    Restart the server after making this change.
+  </Step>
+
+  <Step title="Generate a JWT for the service account">
+    Operational webhooks use a dedicated Svix service account. Generate its authentication token using:
+
+    ```bash
+    svix-server jwt generate org_00000000000SvixManagement00
+    ```
+
+    This returns a token specific to the operational webhooks service account. For the remaining steps, assume the token returned is `op_webhook_token_123`.
+  </Step>
+
+  <Step title="Create an application for your organization">
+    Register your organization with the operational webhooks service account. Use your organization's ID as the `uid`. The example below uses the default org ID `org_23rb8YdGqMT0qIzpgGwdXfHirMu` — replace it with your own.
+
+    ```bash
+    curl -X 'POST' \
+      'http://localhost:8071/api/v1/app/' \
+      -H 'Authorization: Bearer op_webhook_token_123' \
+      -H 'Accept: application/json' \
+      -H 'Content-Type: application/json' \
+      -d '{
+            "name": "Operational webhook for default org",
+            "uid": "org_23rb8YdGqMT0qIzpgGwdXfHirMu"
+          }'
+    ```
+  </Step>
+
+  <Step title="Add an endpoint to receive the events">
+    Now create an endpoint where operational webhooks will be delivered. Use your organization's ID as the `app_id`. You can optionally filter to only receive specific event types.
+
+    ```bash
+    curl -X 'POST' \
+      'http://localhost:8071/api/v1/app/org_23rb8YdGqMT0qIzpgGwdXfHirMu/endpoint/' \
+      -H 'Authorization: Bearer AUTH_TOKEN' \
+      -H 'Accept: application/json' \
+      -H 'Content-Type: application/json' \
+      -d '{
+            "url": "https://operational-webhook-destination.com/webhook/",
+            "filterTypes": [
+              "endpoint.updated",
+              "endpoint.deleted"
+            ]
+          }'
+    ```
+
+    <Note>
+    The `filterTypes` field is optional. Omitting it means your endpoint will receive all supported operational webhook event types.
+    </Note>
+  </Step>
+</Steps>
+
+That's it — operational webhooks are now active for your organization. To add more endpoints or modify existing ones later, generate a JWT for the service account and use it as you would any normal Svix token.
+
+## Managing endpoints
+
+To add or update operational webhook endpoints in the future:
+
+1. Generate a service account JWT:
+   ```bash
+   svix-server jwt generate org_00000000000SvixManagement00
+   ```
+2. Use the returned token with the standard Svix API, treating your organization ID as the application ID.

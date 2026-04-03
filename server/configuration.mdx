@@ -1,0 +1,150 @@
+---
+title: "Server Configuration"
+description: "Reference for all svix-server configuration options, with config file and environment variable formats."
+---
+
+The server can be configured three ways: a `config.toml` file in the working directory, a `.env` file, or environment variables. Environment variables take the form `SVIX_<OPTION_NAME>` in uppercase.
+
+<CodeGroup>
+```toml config.toml
+jwt_secret = "8KjzRXrKkd9YFcNyqLSIY8JwiaCeRc6WK4UkMnSW"
+db_dsn = "postgresql://postgres:postgres@pgbouncer/postgres"
+redis_dsn = "redis://redis:6379"
+queue_type = "redis"
+```
+
+```bash Environment variables
+SVIX_JWT_SECRET="8KjzRXrKkd9YFcNyqLSIY8JwiaCeRc6WK4UkMnSW"
+SVIX_DB_DSN="postgresql://postgres:postgres@pgbouncer/postgres"
+SVIX_REDIS_DSN="redis://redis:6379"
+SVIX_QUEUE_TYPE="redis"
+```
+</CodeGroup>
+
+## Network
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `listen_address` | `0.0.0.0:8071` | Address and port the server binds to. |
+
+## Authentication
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `jwt_secret` | *(required)* | Secret used to sign and verify JWTs. Must be set before starting the server. |
+| `jwt_algorithm` | `HS256` | Algorithm used to sign JWTs. Supported: `HS256`, `HS384`, `HS512`, `RS256`, `RS384`, `RS512`, `EdDSA`. |
+
+<Warning>
+`jwt_secret` has no default value and the server will not start without it. Use a securely generated random string.
+</Warning>
+
+## Database
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `db_dsn` | *(required)* | PostgreSQL connection string. Only PostgreSQL is supported. |
+| `db_pool_max_size` | `100` | Maximum connections in the PostgreSQL pool. Minimum value is `10`. |
+
+<Tip>
+Increasing `db_pool_max_size` can significantly improve throughput if your PostgreSQL and PGBouncer instances can handle additional connections.
+</Tip>
+
+## Redis
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `redis_dsn` | *(unset)* | Default Redis connection string. Used for both queue and cache unless overridden by `queue_dsn` or `cache_dsn`. |
+| `redis_pool_max_size` | `100` | Maximum connections in the Redis pool. Minimum value is `10`. |
+
+## Queue
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `queue_type` | `redis` | Message queue backend. Supported: `memory`, `redis`, `rediscluster`. |
+| `queue_dsn` | *(unset)* | Redis connection string for the queue. Overrides `redis_dsn`. |
+
+## Cache
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `cache_type` | `memory` | Cache backend. Supported: `memory`, `redis`, `rediscluster`, `none`. |
+| `cache_dsn` | *(unset)* | Redis connection string for the cache. Overrides `redis_dsn`. |
+
+<Note>
+Use the `memory` cache backend when running a single API server instance. For multiple API server instances, use `redis` or `rediscluster`—otherwise features like idempotency may not work correctly.
+</Note>
+
+## Delivery
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `retry_schedule` | `[5,300,1800,7200,18000,36000,36000]` | Retry intervals in seconds. Each value is the delay before the next attempt. |
+| `endpoint_https_only` | `false` | When `true`, only HTTPS endpoint URLs are accepted. |
+| `endpoint_failure_disable_after` | `120` | Hours an endpoint must continuously fail before being automatically disabled. A single successful delivery resets the timer. |
+| `worker_request_timeout` | `30` | Seconds to wait for a response from a webhook endpoint before timing out. |
+
+## Security
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `whitelist_subnets` | `[]` | CIDR-notation subnets that are allowed as outbound webhook destinations. By default, private IP ranges are blocked to prevent SSRF. |
+
+<Warning>
+Entries in `whitelist_subnets` allow delivery to private IP ranges. Only configure this if your service operates in a trusted internal network.
+</Warning>
+
+## Logging
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `log_level` | `info` | Log verbosity. Supported: `info`, `debug`, `trace`. |
+| `log_format` | `default` | Log output format. Supported: `default`, `json`. |
+
+## Full example
+
+<CodeGroup>
+```toml config.toml
+listen_address = "0.0.0.0:8071"
+jwt_secret = "8KjzRXrKkd9YFcNyqLSIY8JwiaCeRc6WK4UkMnSW"
+jwt_algorithm = "HS256"
+
+db_dsn = "postgresql://postgres:postgres@pgbouncer/postgres"
+db_pool_max_size = 100
+
+redis_dsn = "redis://redis:6379"
+redis_pool_max_size = 100
+
+queue_type = "redis"
+cache_type = "redis"
+
+retry_schedule = [5, 300, 1800, 7200, 18000, 36000, 36000]
+endpoint_https_only = false
+endpoint_failure_disable_after = 120
+worker_request_timeout = 30
+
+log_level = "info"
+log_format = "default"
+```
+
+```bash Environment variables
+SVIX_LISTEN_ADDRESS="0.0.0.0:8071"
+SVIX_JWT_SECRET="8KjzRXrKkd9YFcNyqLSIY8JwiaCeRc6WK4UkMnSW"
+SVIX_JWT_ALGORITHM="HS256"
+
+SVIX_DB_DSN="postgresql://postgres:postgres@pgbouncer/postgres"
+SVIX_DB_POOL_MAX_SIZE=100
+
+SVIX_REDIS_DSN="redis://redis:6379"
+SVIX_REDIS_POOL_MAX_SIZE=100
+
+SVIX_QUEUE_TYPE="redis"
+SVIX_CACHE_TYPE="redis"
+
+SVIX_ENDPOINT_HTTPS_ONLY=false
+SVIX_ENDPOINT_FAILURE_DISABLE_AFTER=120
+SVIX_WORKER_REQUEST_TIMEOUT=30
+
+SVIX_LOG_LEVEL="info"
+SVIX_LOG_FORMAT="default"
+```
+</CodeGroup>

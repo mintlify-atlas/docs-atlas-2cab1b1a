@@ -1,0 +1,524 @@
+---
+title: "Messages"
+description: "Send webhook messages to all endpoints registered in an application."
+---
+
+A **message** is the individual webhook payload that Svix dispatches to every active endpoint belonging to an application. When you create a message, Svix immediately attempts delivery to all matching endpoints and manages retries automatically on failure.
+
+## Required fields
+
+Every message requires two fields:
+
+- **`eventType`** — The name of a defined event type (e.g., `user.created`).
+- **`payload`** — A JSON object that forms the body of the webhook request.
+
+## Sending a message
+
+<CodeGroup>
+
+```typescript typescript
+import { Svix } from "svix";
+
+const svix = new Svix("YOUR_AUTH_TOKEN");
+
+const msg = await svix.message.create("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL", {
+  eventType: "user.created",
+  payload: {
+    userId: "usr_2NuV5JnHvOAuBGJxNdVxfO",
+    email: "alice@example.com",
+    createdAt: "2024-01-15T10:30:00Z",
+  },
+});
+
+console.log(msg.id); // msg_2MBCdZvPxmRfCa1GWXcXnS
+```
+
+```python python
+from svix.api import SvixAsync
+from svix.models import MessageIn
+
+svix = SvixAsync("YOUR_AUTH_TOKEN")
+
+msg = await svix.message.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    MessageIn(
+        event_type="user.created",
+        payload={
+            "userId": "usr_2NuV5JnHvOAuBGJxNdVxfO",
+            "email": "alice@example.com",
+            "createdAt": "2024-01-15T10:30:00Z",
+        },
+    ),
+)
+
+print(msg.id)  # msg_2MBCdZvPxmRfCa1GWXcXnS
+```
+
+```go go
+import (
+    svix "github.com/svix/svix-webhooks/go"
+    "github.com/svix/svix-webhooks/go/models"
+)
+
+svixClient, _ := svix.New("YOUR_AUTH_TOKEN", nil)
+
+msg, err := svixClient.Message.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.MessageIn{
+        EventType: "user.created",
+        Payload: map[string]interface{}{
+            "userId":    "usr_2NuV5JnHvOAuBGJxNdVxfO",
+            "email":     "alice@example.com",
+            "createdAt": "2024-01-15T10:30:00Z",
+        },
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+<Note>
+  Svix supports payload sizes up to 1 MiB. Keep payloads small in practice —
+  40 KB or less is a good target. Use links to your API for large resources
+  rather than embedding the full object.
+</Note>
+
+## Idempotency with eventId
+
+The `eventId` field is an optional user-supplied identifier for the message. If a message with the same `eventId` already exists for the application, Svix returns a 409 conflict error instead of creating a duplicate.
+
+<CodeGroup>
+
+```typescript typescript
+const msg = await svix.message.create("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL", {
+  eventType: "invoice.payment_failed",
+  eventId: "invoice_42_payment_attempt_3",
+  payload: {
+    invoiceId: "inv_42",
+    customerId: "cust_99",
+    amountDue: 4900,
+    currency: "usd",
+  },
+});
+```
+
+```python python
+msg = await svix.message.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    MessageIn(
+        event_type="invoice.payment_failed",
+        event_id="invoice_42_payment_attempt_3",
+        payload={
+            "invoiceId": "inv_42",
+            "customerId": "cust_99",
+            "amountDue": 4900,
+            "currency": "usd",
+        },
+    ),
+)
+```
+
+```go go
+eventId := "invoice_42_payment_attempt_3"
+msg, err := svixClient.Message.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.MessageIn{
+        EventType: "invoice.payment_failed",
+        EventId:   &eventId,
+        Payload: map[string]interface{}{
+            "invoiceId":  "inv_42",
+            "customerId": "cust_99",
+            "amountDue":  4900,
+            "currency":   "usd",
+        },
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+<Note>
+  `eventId` uniqueness is enforced for 24 hours. After that, a message with the
+  same `eventId` can be created again without conflict.
+</Note>
+
+## Filtering with channels and tags
+
+### Channels
+
+Channels let endpoints receive only messages sent to specific channels. A message can belong to multiple channels. Endpoints that specify channels only receive messages sent to at least one matching channel.
+
+<CodeGroup>
+
+```typescript typescript
+const msg = await svix.message.create("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL", {
+  eventType: "order.shipped",
+  channels: ["us-east", "fulfillment-service"],
+  payload: {
+    orderId: "ord_881",
+    trackingNumber: "1Z999AA10123456784",
+  },
+});
+```
+
+```python python
+msg = await svix.message.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    MessageIn(
+        event_type="order.shipped",
+        channels=["us-east", "fulfillment-service"],
+        payload={
+            "orderId": "ord_881",
+            "trackingNumber": "1Z999AA10123456784",
+        },
+    ),
+)
+```
+
+```go go
+msg, err := svixClient.Message.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.MessageIn{
+        EventType: "order.shipped",
+        Channels:  []string{"us-east", "fulfillment-service"},
+        Payload: map[string]interface{}{
+            "orderId":        "ord_881",
+            "trackingNumber": "1Z999AA10123456784",
+        },
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+Unlike event types, channels do not imply a specific payload shape. They are free-form strings for routing purposes.
+
+### Tags
+
+Tags are metadata labels you attach to messages. They are not used for routing — endpoints cannot filter by tags — but you can filter the message list by tag when querying history.
+
+<CodeGroup>
+
+```typescript typescript
+const msg = await svix.message.create("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL", {
+  eventType: "subscription.cancelled",
+  tags: ["churn", "billing"],
+  payload: {
+    subscriptionId: "sub_77",
+    reason: "non_payment",
+  },
+});
+```
+
+```python python
+msg = await svix.message.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    MessageIn(
+        event_type="subscription.cancelled",
+        tags=["churn", "billing"],
+        payload={
+            "subscriptionId": "sub_77",
+            "reason": "non_payment",
+        },
+    ),
+)
+```
+
+```go go
+msg, err := svixClient.Message.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.MessageIn{
+        EventType: "subscription.cancelled",
+        Tags:      []string{"churn", "billing"},
+        Payload: map[string]interface{}{
+            "subscriptionId": "sub_77",
+            "reason":         "non_payment",
+        },
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Scheduled delivery
+
+Use `deliverAt` to schedule a message for future delivery. The time must be at least one minute in the future and no more than 24 hours from now.
+
+<CodeGroup>
+
+```typescript typescript
+const deliverAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
+
+const msg = await svix.message.create("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL", {
+  eventType: "reminder.scheduled",
+  deliverAt,
+  payload: { userId: "usr_2NuV5JnHvOAuBGJxNdVxfO" },
+});
+```
+
+```python python
+from datetime import datetime, timedelta
+
+deliver_at = datetime.utcnow() + timedelta(minutes=5)
+
+msg = await svix.message.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    MessageIn(
+        event_type="reminder.scheduled",
+        deliver_at=deliver_at,
+        payload={"userId": "usr_2NuV5JnHvOAuBGJxNdVxfO"},
+    ),
+)
+```
+
+```go go
+deliverAt := time.Now().Add(5 * time.Minute)
+
+msg, err := svixClient.Message.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.MessageIn{
+        EventType: "reminder.scheduled",
+        DeliverAt: &deliverAt,
+        Payload:   map[string]interface{}{"userId": "usr_2NuV5JnHvOAuBGJxNdVxfO"},
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Retry schedule
+
+When an endpoint returns a non-2xx response or is unreachable, Svix retries delivery automatically. The default retry schedule uses exponential backoff with the following delays after the initial attempt:
+
+| Attempt | Delay after previous attempt |
+| ------- | ---------------------------- |
+| 1       | 5 seconds                    |
+| 2       | 5 minutes                    |
+| 3       | 30 minutes                   |
+| 4       | 2 hours                      |
+| 5       | 5 hours                      |
+| 6       | 10 hours                     |
+| 7       | 10 hours                     |
+
+After all attempts are exhausted, the message attempt is marked as `failed`. You can use [endpoint recovery](/sending/endpoints#recovering-failed-messages) to replay failed messages.
+
+<Note>
+  Endpoints that respond with a 2xx status code on any attempt are considered
+  successfully delivered. Subsequent retries are skipped.
+</Note>
+
+## Listing messages
+
+Retrieve messages sent to an application. By default, this returns up to 90 days of history.
+
+<CodeGroup>
+
+```typescript typescript
+const messages = await svix.message.list("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL", {
+  limit: 50,
+});
+
+for (const msg of messages.data) {
+  console.log(msg.id, msg.eventType);
+}
+```
+
+```python python
+from svix.api import MessageListOptions
+
+messages = await svix.message.list(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    MessageListOptions(limit=50),
+)
+
+for msg in messages.data:
+    print(msg.id, msg.event_type)
+```
+
+```go go
+limit := uint64(50)
+messages, err := svixClient.Message.List(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    &svix.MessageListOptions{Limit: &limit},
+)
+
+for _, msg := range messages.Data {
+    fmt.Println(msg.Id, msg.EventType)
+}
+```
+
+</CodeGroup>
+
+### Filter options
+
+<ResponseField name="limit" type="number">
+  Maximum number of messages to return per page.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor from a previous response for pagination.
+</ResponseField>
+
+<ResponseField name="channel" type="string">
+  Filter messages by a specific channel.
+</ResponseField>
+
+<ResponseField name="tag" type="string">
+  Filter messages by a specific tag.
+</ResponseField>
+
+<ResponseField name="eventTypes" type="string[]">
+  Filter messages to only those with one of the specified event types.
+</ResponseField>
+
+<ResponseField name="before" type="Date">
+  Only include messages created before this date.
+</ResponseField>
+
+<ResponseField name="after" type="Date">
+  Only include messages created after this date.
+</ResponseField>
+
+<ResponseField name="withContent" type="boolean">
+  When `true`, the full message payload is included in list responses.
+  Defaults to `false`.
+</ResponseField>
+
+## Getting a message
+
+Retrieve a specific message by its Svix message ID or your custom `eventId`.
+
+<CodeGroup>
+
+```typescript typescript
+// by Svix message ID
+const msg = await svix.message.get(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "msg_2MBCdZvPxmRfCa1GWXcXnS"
+);
+
+// by eventId
+const msg = await svix.message.get(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "invoice_42_payment_attempt_3"
+);
+```
+
+```python python
+# by Svix message ID
+msg = await svix.message.get(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "msg_2MBCdZvPxmRfCa1GWXcXnS",
+)
+
+# by eventId
+msg = await svix.message.get(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "invoice_42_payment_attempt_3",
+)
+```
+
+```go go
+// by Svix message ID
+msg, err := svixClient.Message.Get(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "msg_2MBCdZvPxmRfCa1GWXcXnS",
+    nil,
+)
+
+// by eventId
+msg, err := svixClient.Message.Get(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "invoice_42_payment_attempt_3",
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Deleting message payload
+
+If a message was accidentally sent with sensitive data, you can delete its payload. The message record itself remains in history, but the payload is permanently removed and the message cannot be replayed.
+
+<CodeGroup>
+
+```typescript typescript
+await svix.message.expungeContent(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "msg_2MBCdZvPxmRfCa1GWXcXnS"
+);
+```
+
+```python python
+await svix.message.expunge_content(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "msg_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+```go go
+err := svixClient.Message.ExpungeContent(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "msg_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+</CodeGroup>
+
+<Warning>
+  Once a payload is expunged, it cannot be recovered. The message cannot be
+  replayed or resent.
+</Warning>
+
+## Message fields
+
+<ResponseField name="eventType" type="string" required>
+  The name of the event type (e.g., `user.created`).
+</ResponseField>
+
+<ResponseField name="payload" type="object" required>
+  The JSON payload sent as the webhook request body. Maximum size is 1 MiB.
+</ResponseField>
+
+<ResponseField name="eventId" type="string">
+  Optional user-supplied unique ID for idempotency. Uniqueness is enforced for
+  24 hours per application.
+</ResponseField>
+
+<ResponseField name="channels" type="string[]">
+  List of channels to associate with this message. Only endpoints subscribed to
+  at least one matching channel will receive it.
+</ResponseField>
+
+<ResponseField name="tags" type="string[]">
+  Arbitrary labels for filtering message history. Not used for delivery routing.
+</ResponseField>
+
+<ResponseField name="deliverAt" type="string">
+  ISO 8601 timestamp for scheduled delivery. Must be 1 minute to 24 hours in
+  the future.
+</ResponseField>
+
+<ResponseField name="payloadRetentionPeriod" type="number">
+  Number of days to retain the message payload. Defaults to 90. Mutually
+  exclusive with `payloadRetentionHours`.
+</ResponseField>
+
+<ResponseField name="payloadRetentionHours" type="number">
+  Number of hours to retain the message payload. Mutually exclusive with
+  `payloadRetentionPeriod`.
+</ResponseField>

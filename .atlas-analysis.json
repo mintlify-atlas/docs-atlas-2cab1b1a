@@ -1,28 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
-  "name": "Svix",
+  "projectType": "saas",
+  "projectName": "Svix",
+  "projectDescription": "An open-source, enterprise-ready webhooks service that handles deliverability, retries, and security so developers can send webhooks with a single API call.",
   "theme": "luma",
-  "colors": {
-    "primary": "#769feb",
-    "light": "#213272",
-    "dark": "#dee7f2"
-  },
-  "favicon": "https://media.brand.dev/483b6040-3ada-482e-8f88-442022df1d7a.png",
-  "logo": {
-    "light": "https://media.brand.dev/1f1c4f07-950b-4c0f-a501-d3c5f76bce4e.svg",
-    "dark": "https://media.brand.dev/48e16547-66c1-42b3-8164-6ab110c26072.svg"
-  },
-  "navbar": {
-    "primary": {
-      "type": "github",
-      "href": "https://github.com/svix/svix-webhooks"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/svix/svix-webhooks"
-    }
-  },
+  "primaryColor": "#769feb",
+  "lightColor": "#213272",
+  "darkColor": "#dee7f2",
   "navigation": {
     "tabs": [
       {
@@ -114,5 +97,30 @@
         ]
       }
     ]
-  }
+  },
+  "keyFeatures": [
+    "Send webhooks with a single API call across 9+ official language SDKs",
+    "Automatic retries with configurable retry schedules",
+    "Symmetric (HMAC) and asymmetric (Ed25519) webhook signature verification",
+    "Self-hostable Rust server with Docker and Kubernetes support",
+    "Consumer App Portal for end-users to manage their webhook endpoints",
+    "Svix Bridge for integrating with Kafka, RabbitMQ, GCP Pub/Sub, SQS, and Redis",
+    "Operational webhooks for server-side event notifications",
+    "OpenTelemetry tracing support",
+    "CLI tool for local development and webhook testing"
+  ],
+  "publicApiSurface": [
+    "POST /api/v1/app/ — Create application",
+    "GET /api/v1/app/ — List applications",
+    "POST /api/v1/app/{app_id}/msg/ — Create message",
+    "GET /api/v1/app/{app_id}/msg/ — List messages",
+    "POST /api/v1/app/{app_id}/endpoint/ — Create endpoint",
+    "GET /api/v1/app/{app_id}/endpoint/ — List endpoints",
+    "GET /api/v1/app/{app_id}/attempt/msg/{msg_id}/ — List message attempts",
+    "POST /api/v1/app/{app_id}/attempt/msg/{msg_id}/{endpoint_id}/resend/ — Resend message",
+    "GET /api/v1/event-type/ — List event types",
+    "POST /api/v1/auth/app-portal-access/{app_id}/ — Get app portal access token",
+    "Webhook.verify() — Verify incoming webhook signature (all SDKs)",
+    "Svix(token) — Main SDK client constructor (JS/Python/Go/etc.)"
+  ]
 }

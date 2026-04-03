@@ -1,0 +1,154 @@
+---
+title: "Consumer App Portal"
+description: "Give your customers a self-service UI to manage their webhook endpoints without building one yourself."
+---
+
+The Consumer App Portal is an embeddable UI that Svix hosts on your behalf. Your customers can use it to:
+
+- Add, edit, and delete webhook endpoints.
+- Browse message logs and inspect delivery attempts.
+- Rotate endpoint secrets and replay failed messages.
+
+You never expose your Svix API key to end-users. Instead, your backend generates a short-lived **magic link** on demand and redirects the user to it.
+
+## How it works
+
+<Steps>
+
+  <Step title="User requests access to their webhook settings">
+    Your frontend sends a request to your backend (e.g. clicking a "Manage webhooks" button). The backend knows which Svix `appId` corresponds to the logged-in user.
+  </Step>
+
+  <Step title="Your backend generates a magic link">
+    Call `authentication.appPortalAccess` with the user's `appId`. The returned `AppPortalAccessOut` object contains a `url` field — the magic link.
+
+    <CodeGroup>
+
+    ```typescript TypeScript
+    import { Svix } from "svix";
+
+    const svix = new Svix("sk_...");
+
+    async function getPortalUrl(appId: string): Promise<string> {
+      const portalAccess = await svix.authentication.appPortalAccess(appId, {
+        // expiry controls how long the token is valid (1 hour – 7 days).
+        // Omit to use the default of 7 days.
+        expiry: 3600, // 1 hour, in seconds
+      });
+
+      return portalAccess.url;
+    }
+    ```
+
+    ```python Python
+    from svix import Svix
+    from svix.models import AppPortalAccessIn
+
+    svix = Svix("sk_...")
+
+    def get_portal_url(app_id: str) -> str:
+        portal_access = svix.authentication.app_portal_access(
+            app_id,
+            AppPortalAccessIn(
+                # expiry controls how long the token is valid (1 hour – 7 days).
+                # Omit to use the default of 7 days.
+                expiry=3600,  # 1 hour, in seconds
+            ),
+        )
+
+        return portal_access.url
+    ```
+
+    ```go Go
+    package main
+
+    import (
+        "context"
+
+        svix "github.com/svix/svix-webhooks/go"
+        "github.com/svix/svix-webhooks/go/models"
+    )
+
+    func getPortalURL(appId string) (string, error) {
+        svixClient := svix.New("sk_...", nil)
+
+        expiry := int32(3600) // 1 hour, in seconds
+        portalAccess, err := svixClient.Authentication.AppPortalAccess(
+            context.Background(),
+            appId,
+            models.AppPortalAccessIn{
+                // Expiry controls how long the token is valid (1 hour – 7 days).
+                // Omit to use the default of 7 days.
+                Expiry: &expiry,
+            },
+            nil,
+        )
+        if err != nil {
+            return "", err
+        }
+
+        return portalAccess.Url, nil
+    }
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Redirect the user to the magic link">
+    Return the URL to your frontend and redirect the user there. The portal opens pre-authenticated — no login screen.
+
+    ```typescript
+    // Next.js example
+    export async function GET(request: Request) {
+      const appId = getCurrentUserAppId(request); // your auth logic
+      const url = await getPortalUrl(appId);
+      return Response.redirect(url);
+    }
+    ```
+  </Step>
+
+</Steps>
+
+## Access token lifetime
+
+<Warning>
+  Magic links are short-lived and single-use. Do not cache or share them. Generate a fresh link every time a user needs access.
+</Warning>
+
+The `expiry` field on `AppPortalAccessIn` controls how long the **session token** embedded in the URL remains valid:
+
+| Value | Behaviour |
+|---|---|
+| Omitted | Defaults to **7 days** |
+| `3600` | Expires after **1 hour** |
+| Min / Max | **1 hour** to **7 days** (values outside this range are rejected) |
+
+The URL itself should be consumed immediately. For security-sensitive contexts, use a short expiry (e.g. one hour) and generate a new link on each page visit.
+
+## Scoping capabilities
+
+By default a portal token grants full access to the application's endpoints. You can restrict what users can see and do by passing an explicit `capabilities` list:
+
+```typescript TypeScript
+const portalAccess = await svix.authentication.appPortalAccess(appId, {
+  capabilities: [
+    "ViewBase",          // always required — read-only baseline
+    "ViewEndpointSecret", // let users see (but not rotate) secrets
+  ],
+});
+```
+
+Available capabilities (from `AppPortalAccessIn`):
+
+| Capability | Effect |
+|---|---|
+| `ViewBase` | Read-only access. Required — always included. |
+| `ViewEndpointSecret` | User can view the endpoint signing secret. |
+| `ManageEndpointSecret` | User can rotate and view the endpoint secret. |
+| `ManageTransformations` | User can modify endpoint transformations. |
+| `CreateAttempts` | User can replay messages and send test events. |
+| `ManageEndpoint` | Full read/write access to endpoints, including secrets. |
+
+<Note>
+  If you omit `capabilities` entirely, the token receives **all** capabilities. Specify the list explicitly whenever you want to grant least-privilege access.
+</Note>

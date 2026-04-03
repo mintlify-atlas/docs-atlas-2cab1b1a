@@ -1,0 +1,78 @@
+---
+title: "Authentication"
+description: "How to authenticate requests to the Svix API using Bearer tokens."
+---
+
+All Svix API requests are authenticated using HTTP Bearer tokens passed in the `Authorization` header.
+
+```
+Authorization: Bearer <TOKEN>
+```
+
+## Obtaining an API token
+
+### Svix Cloud
+
+Log in to the [Svix dashboard](https://dashboard.svix.com) and navigate to **Settings → API Keys** to create or copy your organization's API token.
+
+### Self-hosted Svix server
+
+Generate a token directly on the server using the `svix-server` CLI:
+
+```bash
+svix-server jwt generate
+```
+
+Copy the output token and use it as your Bearer credential.
+
+## Using your token
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Accept: application/json"
+```
+
+```bash CLI
+export SVIX_AUTH_TOKEN=<TOKEN>
+svix application list
+```
+
+</CodeGroup>
+
+<Note>
+  The CLI reads `SVIX_AUTH_TOKEN` from the environment, or you can run `svix login` to store credentials persistently.
+</Note>
+
+## Security scheme
+
+The Svix API uses the `HTTPBearer` scheme as defined in the OpenAPI spec:
+
+```
+type: http
+scheme: bearer
+```
+
+The token is passed in the `Authorization` header as a standard Bearer credential. No additional encoding is required.
+
+## Error responses
+
+When authentication fails, the API returns a `401 Unauthorized` response:
+
+```json
+{
+  "code": "authentication_failed",
+  "detail": "Invalid or missing authentication token."
+}
+```
+
+| Status code | Meaning |
+| ----------- | ------- |
+| `401` | Missing or invalid token |
+| `403` | Token is valid but lacks permission for the requested resource |
+
+<Warning>
+  Never commit API tokens to version control. Use environment variables or a secrets manager to store credentials securely.
+</Warning>

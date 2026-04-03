@@ -1,0 +1,391 @@
+---
+title: "Svix Bridge"
+description: "Integrate Svix webhooks with your existing messaging infrastructure using the Svix Bridge agent."
+---
+
+Svix Bridge is an agent that connects Svix webhooks to your existing message queue or streaming infrastructure. It is organized around two concepts: **senders** and **receivers**.
+
+<CardGroup cols={2}>
+  <Card title="Senders" icon="arrow-right">
+    Consume messages from a queue or stream and send them to Svix as webhooks. Think of them as "message queue → Svix."
+  </Card>
+  <Card title="Receivers" icon="arrow-left">
+    Act as HTTP endpoints that accept incoming Svix webhooks and publish the payload to a queue or stream. Think of them as "Svix → message queue."
+  </Card>
+</CardGroup>
+
+Receivers also optionally perform Svix signature verification on incoming webhooks.
+
+Both senders and receivers support an optional JavaScript **transformation** step that lets you reshape the message payload before it is forwarded.
+
+## Supported backends
+
+<CardGroup cols={3}>
+  <Card title="GCP Pub/Sub" icon="cloud" />
+  <Card title="RabbitMQ" icon="server" />
+  <Card title="Redis" icon="database" />
+  <Card title="SQS" icon="cloud" />
+  <Card title="Kafka" icon="stream" />
+</CardGroup>
+
+<Note>
+Queues, exchanges, topics, and subscriptions must be created and configured before launching Bridge. Bridge will not attempt to create these resources automatically.
+</Note>
+
+## Installation
+
+Pull the official Docker image from Docker Hub:
+
+```bash
+docker pull svix/svix-bridge
+```
+
+## Configuration
+
+Bridge looks for a config file named `svix-bridge.yaml` or `svix-bridge.json` in the current working directory. You can specify an alternate path with `--cfg-file` (or `SVIX_BRIDGE_CFG_FILE`), or pass config directly as a string via `--cfg` (or `SVIX_BRIDGE_CFG`).
+
+```bash
+# Default config file location
+svix-bridge
+
+# Alternate file path
+svix-bridge --cfg-file path/to/svix-bridge.yaml
+
+# Inline config string
+svix-bridge --cfg '{"log_format": "json", "senders": []}'
+```
+
+Bridge supports environment variable expansion inside config files using `${MY_VARIABLE}` syntax.
+
+## Senders
+
+Senders consume messages from a queue and call the Svix Create Message API. Each sender requires an input (the queue), an optional transformation, and an output (your Svix token).
+
+The message forwarded to Svix must follow this shape (either directly from the queue or produced by a transformation):
+
+```json
+{
+  "appId": "app_XYZ",
+  "message": {
+    "eventType": "my.event",
+    "payload": { "code": 123, "message": "something happened..." }
+  }
+}
+```
+
+<CodeGroup>
+
+```yaml GCP Pub/Sub
+senders:
+  - name: "gcp-example"
+    input:
+      type: "gcp-pubsub"
+      subscription_id: "my-subscription"
+      # Optional - falls back to env vars when unset
+      credentials_file: "/path/to/credentials.json"
+    transformation:
+      format: "json"
+      src: |
+        function handler(input) {
+          return {
+            appId: input.key,
+            message: {
+              eventType: input.event_type,
+              payload: input.data
+            }
+          };
+        }
+    output:
+      type: "svix"
+      token: "XYZ"
+```
+
+```yaml RabbitMQ
+senders:
+  - name: "rabbitmq-example"
+    input:
+      type: "rabbitmq"
+      uri: "amqp://guest:guest@localhost:5672/%2f"
+      queue_name: "my-queue"
+      # Optional
+      consumer_tag: "my-consumer-001"
+      # Optional (default: true)
+      requeue_on_nack: false
+    transformation: |
+      function handler(input) {
+        return {
+          appId: input.key,
+          message: {
+            eventType: input.event_type,
+            payload: input.data
+          }
+        };
+      }
+    output:
+      type: "svix"
+      token: "XYZ"
+```
+
+```yaml Redis
+senders:
+  - name: "redis-example"
+    input:
+      type: "redis"
+      dsn: "redis://localhost:6379/"
+      queue_key: "my_queue"
+      consumer_name: "my_consumer"
+      consumer_group: "my_group"
+      max_connections: 4
+      # Optional (default: true)
+      reinsert_on_nack: true
+    transformation: |
+      function handler(input) {
+        return {
+          appId: input.key,
+          message: {
+            eventType: input.event_type,
+            payload: input.data
+          }
+        };
+      }
+    output:
+      type: "svix"
+      token: "XYZ"
+```
+
+```yaml SQS
+# Set AWS credentials as environment variables:
+# AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+senders:
+  - name: "sqs-example"
+    input:
+      type: "sqs"
+      queue_dsn: "http://localhost:19324/000000000000/local"
+      # Optional (default: false)
+      override_endpoint: true
+    transformation: |
+      function handler(input) {
+        return {
+          appId: input.key,
+          message: {
+            eventType: input.event_type,
+            payload: input.data
+          }
+        };
+      }
+    output:
+      type: "svix"
+      token: "XYZ"
+```
+
+```yaml Kafka
+senders:
+  - name: "kafka-example"
+    input:
+      type: "kafka"
+      kafka_bootstrap_brokers: "localhost:9094"
+      kafka_group_id: "kafka_example_consumer_group"
+      kafka_topic: "foobar"
+      # Valid values: "plaintext", "ssl", "sasl_ssl"
+      kafka_security_protocol: "sasl_ssl"
+      kafka_sasl_username: "user"
+      kafka_sasl_password: "pass"
+      # Optional. Valid values: "PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"
+      # kafka_sasl_mechanism: "SCRAM-SHA-512"
+    transformation: |
+      function handler(input) {
+        return {
+          appId: input.key,
+          message: {
+            eventType: input.event_type,
+            payload: input.data
+          }
+        };
+      }
+    output:
+      type: "svix"
+      token: "XYZ"
+```
+
+</CodeGroup>
+
+## Receivers
+
+Receivers listen on an HTTP endpoint and forward incoming webhooks to a message queue. By default Bridge listens on `0.0.0.0:5000`. A receiver's `path_id` defines the URL path it handles — for example, `path_id: "gcp"` maps to `http://localhost:5000/webhook/gcp`.
+
+The output payload must contain a `payload` field:
+
+```json
+{
+  "payload": { "msg": "my cool message, published by svix-bridge!" }
+}
+```
+
+When no transformation is configured, Bridge automatically wraps the incoming request body in a `payload` field.
+
+<CodeGroup>
+
+```yaml GCP Pub/Sub
+receivers:
+  - name: "forward-to-gcp-example"
+    input:
+      type: "webhook"
+      path_id: "gcp"
+      verification:
+        type: "svix"
+        endpoint_secret: "whsec_XXXXX="
+    transformation: |
+      function handler(input) {
+        let event_type = input.eventType;
+        delete input.eventType;
+        return { payload: { event_type, ...input } };
+      }
+    output:
+      type: "gcp-pubsub"
+      topic: "example"
+      credentials_file: "/path/to/creds.json"
+```
+
+```yaml RabbitMQ
+receivers:
+  - name: "forward-to-rabbitmq-example"
+    input:
+      type: "webhook"
+      path_id: "rabbit"
+      verification:
+        type: "svix"
+        endpoint_secret: "whsec_XXXXX="
+    output:
+      type: "rabbitmq"
+      uri: "amqp://guest:guest@localhost:5672/%2f"
+      exchange: ""
+      routing_key: "example"
+```
+
+```yaml Redis
+receivers:
+  - name: "forward-to-redis-example"
+    input:
+      type: "webhook"
+      path_id: "redis"
+      verification:
+        type: "svix"
+        endpoint_secret: "whsec_XXXXX="
+    output:
+      type: "redis"
+      dsn: "redis://localhost:1234"
+      max_connections: 4
+      queue_key: "my_queue"
+```
+
+```yaml SQS
+# Set AWS credentials as environment variables:
+# AWS_DEFAULT_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+receivers:
+  - name: "forward-to-sqs-example"
+    input:
+      type: "webhook"
+      path_id: "sqs"
+      verification:
+        type: "none"
+    output:
+      type: "sqs"
+      queue_dsn: "https://aws.example.com/my-queue"
+```
+
+```yaml Kafka
+receivers:
+  - name: "forward-to-kafka-example"
+    input:
+      type: "webhook"
+      path_id: "kafka"
+      verification:
+        type: "none"
+    output:
+      type: "kafka"
+      kafka_bootstrap_brokers: "localhost:9094"
+      kafka_topic: "foobar"
+      kafka_security_protocol: "sasl_ssl"
+      kafka_sasl_username: "user"
+      kafka_sasl_password: "pass"
+      # Optional - valid values: "PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"
+      # kafka_sasl_mechanism: "SCRAM-SHA-512"
+```
+
+</CodeGroup>
+
+## Transformations
+
+Both senders and receivers support an optional JavaScript transformation step. The transformation must define a function named `handler` that accepts a single argument and returns an object.
+
+**Compact form** (input is pre-parsed as JSON):
+
+```yaml
+transformation: |
+  function handler(input) {
+    return {
+      appId: input.key,
+      message: {
+        eventType: input.event_type,
+        payload: input.data
+      }
+    };
+  }
+```
+
+**Verbose form** (explicit format control):
+
+```yaml
+transformation:
+  format: "json"   # or "string" for raw payload
+  src: |
+    function handler(input) {
+      return {
+        appId: input.key,
+        message: {
+          eventType: input.event_type,
+          payload: input.data
+        }
+      };
+    }
+```
+
+Setting `format: "string"` passes the raw payload as a string, useful for non-JSON inputs like XML:
+
+```yaml
+transformation:
+  # Input: <msg appId="app_123" eventType="a.b"><payload>{"x": 123}</payload></msg>
+  format: "string"
+  src: |
+    function handler(input) {
+      let parser = new DOMParser();
+      let doc = parser.parseFromString(input, "text/xml");
+      let msg = doc.firstChild;
+      let payload = JSON.parse(msg.getElementsByTagName("payload")[0].textContent);
+      return {
+        appId: msg.attributes.appId,
+        message: {
+          eventType: msg.attributes.eventType,
+          payload,
+        }
+      };
+    }
+```
+
+<Tip>
+Environment variable expansion using `${VAR_NAME}` works inside the config file. Use this to keep secrets like tokens and credentials out of your config files.
+</Tip>
+
+## Variable expansion example
+
+```yaml
+senders:
+  - name: "send-webhooks-from-${QUEUE_NAME}"
+    input:
+      type: "rabbitmq"
+      uri: "${MQ_URI}"
+      queue_name: "${QUEUE_NAME}"
+    output:
+      type: "svix"
+      token: "${SVIX_TOKEN}"
+```

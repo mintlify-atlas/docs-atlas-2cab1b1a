@@ -1,0 +1,123 @@
+---
+title: "Queue Backends"
+description: "Configure the message queue backend for svix-server, including Redis persistence, eviction policy, and dead letter queue management."
+---
+
+The svix-server uses a message queue to dispatch webhook deliveries asynchronously. The backend is selected with the `queue_type` configuration option.
+
+## Available backends
+
+| Backend | `queue_type` value | Use case |
+|---------|--------------------|----------|
+| In-memory | `memory` | Local development and testing only |
+| Redis / Valkey | `redis` | Single Redis instance or sentinel |
+| Redis Cluster | `rediscluster` | Horizontally scaled Redis cluster |
+
+<Warning>
+The `memory` backend does not persist tasks across server restarts. **Do not use it in production.** Any queued deliveries are lost when the process exits.
+</Warning>
+
+## Configuring Redis
+
+Set `queue_type` to `redis` or `rediscluster` and provide a connection string via `redis_dsn` or the queue-specific `queue_dsn`:
+
+<CodeGroup>
+```toml config.toml
+queue_type = "redis"
+redis_dsn = "redis://redis:6379"
+```
+
+```bash Environment variables
+SVIX_QUEUE_TYPE="redis"
+SVIX_REDIS_DSN="redis://redis:6379"
+```
+</CodeGroup>
+
+### Separating queue and cache DSNs
+
+`redis_dsn` is a shared default for both the queue and cache. Use `queue_dsn` and `cache_dsn` to point each subsystem at a different Redis instance:
+
+<CodeGroup>
+```toml config.toml
+queue_type = "redis"
+queue_dsn = "redis://redis-queue:6379"
+
+cache_type = "redis"
+cache_dsn = "redis://redis-cache:6379"
+```
+
+```bash Environment variables
+SVIX_QUEUE_TYPE="redis"
+SVIX_QUEUE_DSN="redis://redis-queue:6379"
+
+SVIX_CACHE_TYPE="redis"
+SVIX_CACHE_DSN="redis://redis-cache:6379"
+```
+</CodeGroup>
+
+<Tip>
+Separating queue and cache onto different Redis instances lets you apply different eviction and persistence policies to each, which is the recommended production setup.
+</Tip>
+
+## Redis persistence
+
+<Warning>
+Enable Redis persistence (RDB snapshots or AOF) on any instance used for the queue. Without persistence, a Redis restart will drop all pending webhook deliveries.
+</Warning>
+
+Refer to the [Redis persistence documentation](https://redis.io/docs/management/persistence/) or the equivalent Valkey documentation for how to enable RDB or AOF persistence.
+
+## Redis eviction policy
+
+The `maxmemory-policy` on any Redis instance used by svix-server must be set to `noeviction` or any `volatile-*` policy. This prevents Redis from evicting queue entries under memory pressure.
+
+```
+# redis.conf
+maxmemory-policy noeviction
+```
+
+Acceptable values include `noeviction`, `volatile-lru`, `volatile-lfu`, `volatile-random`, and `volatile-ttl`. Policies that evict keys without TTLs (such as `allkeys-lru`) are **not** safe to use.
+
+## Connection pool sizing
+
+| Option | Default | Applies to |
+|--------|---------|------------|
+| `redis_pool_max_size` | `100` | Redis queue connections |
+| `db_pool_max_size` | `100` | PostgreSQL connections |
+
+<CodeGroup>
+```toml config.toml
+redis_pool_max_size = 100
+db_pool_max_size = 100
+```
+
+```bash Environment variables
+SVIX_REDIS_POOL_MAX_SIZE=100
+SVIX_DB_POOL_MAX_SIZE=100
+```
+</CodeGroup>
+
+<Note>
+Connection pooling applies to the Redis queue backend. The Redis cache backend is fully asynchronous and does not benefit from pool tuning in the same way.
+</Note>
+
+## Dead letter queue (DLQ)
+
+When a task fails repeatedly due to internal errors, svix-server moves it to a dead letter queue (DLQ). Redis does not have a native DLQ, so svix-server manages its own.
+
+### Monitoring DLQ depth
+
+Watch the `svix.queue.depth_dlq` metric. A non-zero value means there are tasks in the DLQ that need attention.
+
+### Redriving the DLQ
+
+Once the underlying error condition is resolved, requeue all DLQ tasks with a POST request to the admin endpoint:
+
+```bash
+curl -X POST http://localhost:8071/api/v1/admin/redrive-dlq/ \
+  -H "Authorization: Bearer <JWT_TOKEN_HERE>"
+```
+
+<Tip>
+Set up an alert on `svix.queue.depth_dlq > 0` so that stuck tasks are caught quickly and do not silently accumulate.
+</Tip>

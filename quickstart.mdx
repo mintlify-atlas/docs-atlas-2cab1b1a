@@ -1,80 +1,250 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Send your first webhook in minutes using the Svix SDK."
 ---
 
-## Get started in three steps
+Svix makes it easy to send webhooks from your application. You make one API call with a payload, and Svix handles delivery, retries, and security. This guide walks you through installing the SDK, creating an application, and sending your first message.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+You need a Svix API token. You can get one from the [Svix dashboard](https://dashboard.svix.com) or, if you're self-hosting, generate one using `svix-server jwt generate`.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
 
-### Step 2: Deploy your changes
+<Step title="Install the SDK">
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+Install the Svix client library for your language.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<CodeGroup>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash npm
+npm install svix
+```
 
-### Step 3: Go live
+```bash yarn
+yarn add svix
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+```bash pip
+pip install svix
+```
 
-## Next steps
+```bash go get
+go get github.com/svix/svix-webhooks/go
+```
 
-Now that you have your docs running, explore these key features:
+</CodeGroup>
 
-<CardGroup cols={2}>
+</Step>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+<Step title="Initialize the client">
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+Create a `Svix` instance with your API token. The client automatically routes to the correct regional endpoint based on the token suffix.
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+<CodeGroup>
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+```typescript TypeScript
+import { Svix } from "svix";
 
-</CardGroup>
+const svix = new Svix("YOUR_AUTH_TOKEN");
+```
+
+```python Python
+from svix import Svix
+
+svix = Svix("YOUR_AUTH_TOKEN")
+```
+
+```go Go
+import (
+    "log"
+    svix "github.com/svix/svix-webhooks/go"
+)
+
+sv, err := svix.New("YOUR_AUTH_TOKEN", nil)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+</CodeGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+If you are self-hosting Svix, pass a `serverUrl` option pointing to your instance:
+
+<CodeGroup>
+
+```typescript TypeScript
+const svix = new Svix("YOUR_AUTH_TOKEN", {
+  serverUrl: "http://localhost:8071",
+});
+```
+
+```python Python
+from svix import Svix, SvixOptions
+
+svix = Svix("YOUR_AUTH_TOKEN", SvixOptions(server_url="http://localhost:8071"))
+```
+
+```go Go
+import (
+    "net/url"
+    svix "github.com/svix/svix-webhooks/go"
+)
+
+serverUrl, _ := url.Parse("http://localhost:8071")
+sv, err := svix.New("YOUR_AUTH_TOKEN", &svix.SvixOptions{
+    ServerUrl: serverUrl,
+})
+```
+
+</CodeGroup>
 </Note>
+
+</Step>
+
+<Step title="Create an application">
+
+An application represents a single user or tenant in your system. Each application has its own set of endpoints that receive webhooks.
+
+<CodeGroup>
+
+```typescript TypeScript
+const app = await svix.application.create({ name: "My Application" });
+console.log(app.id); // app_...
+```
+
+```python Python
+from svix import ApplicationIn
+
+app = svix.application.create(ApplicationIn(name="My Application"))
+print(app.id)  # app_...
+```
+
+```go Go
+import (
+    "context"
+    "fmt"
+    svix "github.com/svix/svix-webhooks/go"
+    "github.com/svix/svix-webhooks/go/models"
+)
+
+app, err := sv.Application.Create(context.Background(), models.ApplicationIn{
+    Name: "My Application",
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(app.Id) // app_...
+```
+
+</CodeGroup>
+
+<Tip>
+Supply an optional `uid` to tie the application to an ID from your own database. This lets you look it up later without storing Svix's generated ID.
+
+<CodeGroup>
+
+```typescript TypeScript
+const app = await svix.application.create({
+  name: "My Application",
+  uid: "user_12345",
+});
+```
+
+```python Python
+app = svix.application.create(
+    ApplicationIn(name="My Application", uid="user_12345")
+)
+```
+
+```go Go
+uid := "user_12345"
+app, err := sv.Application.Create(context.Background(), models.ApplicationIn{
+    Name: "My Application",
+    Uid:  &uid,
+}, nil)
+```
+
+</CodeGroup>
+</Tip>
+
+</Step>
+
+<Step title="Send a message">
+
+A message is a single webhook event dispatched to all endpoints registered under the application. The required fields are `eventType` (a dot-separated string naming the event) and `payload` (the JSON body to deliver).
+
+<CodeGroup>
+
+```typescript TypeScript
+const msg = await svix.message.create(app.id, {
+  eventType: "invoice.paid",
+  payload: {
+    id: "invoice_123",
+    status: "paid",
+    amount: 4900,
+    currency: "usd",
+  },
+});
+console.log(msg.id); // msg_...
+```
+
+```python Python
+from svix import MessageIn
+
+msg = svix.message.create(
+    app.id,
+    MessageIn(
+        event_type="invoice.paid",
+        payload={
+            "id": "invoice_123",
+            "status": "paid",
+            "amount": 4900,
+            "currency": "usd",
+        },
+    ),
+)
+print(msg.id)  # msg_...
+```
+
+```go Go
+payload := map[string]any{
+    "id":       "invoice_123",
+    "status":   "paid",
+    "amount":   4900,
+    "currency": "usd",
+}
+
+msg, err := sv.Message.Create(context.Background(), app.Id, models.MessageIn{
+    EventType: "invoice.paid",
+    Payload:   payload,
+}, nil)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Println(msg.Id) // msg_...
+```
+
+</CodeGroup>
+
+Svix immediately dispatches the message to all of the application's registered endpoints and retries on failure using the configured retry schedule.
+
+<Note>
+You can optionally set `eventId` to a string of your choice for idempotent delivery. If a message with the same `eventId` already exists for the application, Svix returns a 409 conflict error rather than sending a duplicate.
+</Note>
+
+</Step>
+
+</Steps>
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="Self-hosting" icon="server" href="/self-hosting/deployment">
+    Run Svix on your own infrastructure using Docker or build from source.
+  </Card>
+  <Card title="Verifying payloads" icon="shield-check" href="/receiving/verifying-payloads">
+    Verify webhook signatures in your receiving endpoints to reject forged requests.
+  </Card>
+</CardGroup>

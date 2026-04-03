@@ -1,0 +1,113 @@
+---
+title: "Ruby SDK"
+description: "Send webhooks and verify signatures with the official Svix Ruby gem."
+---
+
+## Installation
+
+<CodeGroup>
+
+```ruby Gemfile
+gem 'svix'
+```
+
+```bash gem install
+gem install svix
+```
+
+</CodeGroup>
+
+After adding to your `Gemfile`, run `bundle install`. The gem is published as `svix` on RubyGems.
+
+## Initializing the client
+
+```ruby
+require 'svix'
+
+svix = Svix::Client.new("AUTH_TOKEN")
+```
+
+The client automatically detects the region suffix on your token (`.us`, `.eu`, `.in`, `.ca`, `.au`) and routes requests to the correct regional API endpoint. Use `SvixOptions` to override:
+
+```ruby
+options = Svix::SvixOptions.new(false, "https://api.eu.svix.com")
+svix = Svix::Client.new("AUTH_TOKEN", options)
+```
+
+`SvixOptions.new(debug, server_url)` — both arguments are optional and default to `false` and auto-detected URL respectively.
+
+## Sending a webhook
+
+<Steps>
+
+### Create an application
+
+```ruby
+app = svix.application.create(Svix::ApplicationIn.new({ name: "my-app" }))
+puts app.id  # app_...
+```
+
+### Send a message
+
+```ruby
+msg = svix.message.create(
+  app.id,
+  Svix::MessageIn.new({
+    event_type: "invoice.paid",
+    payload: {
+      type: "invoice.paid",
+      invoiceId: "invoice_123",
+      amount: 9900
+    }
+  })
+)
+puts msg.id  # msg_...
+```
+
+</Steps>
+
+## Verifying a webhook
+
+```ruby
+require 'svix'
+
+wh = Svix::Webhook.new("whsec_<your-endpoint-secret>")
+
+# In a Rails/Sinatra controller — pass the raw body string and a headers hash:
+begin
+  payload = wh.verify(request.body.read, {
+    "svix-id"        => request.env["HTTP_SVIX_ID"],
+    "svix-timestamp" => request.env["HTTP_SVIX_TIMESTAMP"],
+    "svix-signature" => request.env["HTTP_SVIX_SIGNATURE"],
+  })
+  # payload is a Ruby hash with symbolized keys
+rescue Svix::WebhookVerificationError => e
+  halt 400, e.message
+end
+```
+
+`verify` returns the parsed JSON payload as a Ruby hash with symbolized keys on success, and raises `Svix::WebhookVerificationError` on failure.
+
+<Warning>
+  Pass the **raw, unmodified** request body string to `verify`. Read the body
+  before any JSON parsing.
+</Warning>
+
+## Available client properties
+
+| Property                              | Description                                        |
+| :------------------------------------ | :------------------------------------------------- |
+| `svix.application`                    | Create and manage applications                     |
+| `svix.authentication`                 | Generate dashboard access tokens                   |
+| `svix.background_task`                | Track long-running background jobs                 |
+| `svix.endpoint`                       | Create, update, and delete webhook endpoints       |
+| `svix.environment`                    | Import and export environment configuration        |
+| `svix.event_type`                     | Manage event type schemas                          |
+| `svix.health`                         | Check API health                                   |
+| `svix.ingest`                         | Manage ingest sources                              |
+| `svix.integration`                    | Manage third-party integrations                    |
+| `svix.message`                        | Send webhook messages                              |
+| `svix.message_attempt`                | Inspect and retry delivery attempts                |
+| `svix.operational_webhook`            | Subscribe to Svix operational events               |
+| `svix.operational_webhook_endpoint`   | Manage operational webhook endpoints               |
+| `svix.statistics`                     | Aggregate usage statistics                         |

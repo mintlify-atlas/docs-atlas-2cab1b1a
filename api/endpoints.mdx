@@ -1,0 +1,390 @@
+---
+title: "Endpoints"
+description: "Manage webhook delivery endpoints for your Svix applications."
+---
+
+Endpoints define where Svix delivers webhook messages. Each endpoint belongs to an application and has a target URL along with optional filters, channels, and a signing secret.
+
+## List endpoints
+
+**`GET /api/v1/app/{app_id}/endpoint/`**
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of endpoints to return.
+</ParamField>
+
+<ParamField query="iterator" type="string">
+  Pagination cursor from a prior request.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix endpoint list app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+<ResponseField name="data" type="array" required>
+  Array of endpoint objects.
+</ResponseField>
+
+<ResponseField name="done" type="boolean" required>
+  `true` when there are no more pages.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor for the next page.
+</ResponseField>
+
+---
+
+## Create endpoint
+
+**`POST /api/v1/app/{app_id}/endpoint/`**
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  The destination URL for webhook deliveries. Must be a valid HTTPS URL.
+</ParamField>
+
+<ParamField body="description" type="string">
+  A human-readable description for this endpoint. Defaults to empty string.
+</ParamField>
+
+<ParamField body="filterTypes" type="array">
+  List of event type names this endpoint should receive. Omit to receive all event types.
+</ParamField>
+
+<ParamField body="channels" type="array">
+  List of channel identifiers this endpoint listens to. Omit to receive messages from all channels. Maximum 10 channels.
+</ParamField>
+
+<ParamField body="disabled" type="boolean">
+  Whether the endpoint is disabled. Defaults to `false`.
+</ParamField>
+
+<ParamField body="throttleRate" type="integer">
+  Maximum messages per second to deliver to this endpoint.
+</ParamField>
+
+<ParamField body="uid" type="string">
+  Optional custom unique identifier for this endpoint. Must match `^[a-zA-Z0-9\-_.]+$`.
+</ParamField>
+
+<ParamField body="secret" type="string">
+  Verification secret for this endpoint. If omitted, a secret is automatically generated. Format: base64-encoded bytes, optionally prefixed with `whsec_`. Recommended size: 24 bytes.
+</ParamField>
+
+<ParamField body="metadata" type="object">
+  Arbitrary key-value string metadata.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/webhook/",
+    "description": "My endpoint",
+    "filterTypes": ["user.signup", "user.deleted"]
+  }'
+```
+
+```bash CLI
+svix endpoint create app_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  '{"url": "https://example.com/webhook/", "description": "My endpoint"}'
+```
+
+</CodeGroup>
+
+<ResponseField name="id" type="string" required>
+  Endpoint ID, e.g. `ep_1srOrx2ZWZBpBUvZwXKQmoEYga2`.
+</ResponseField>
+
+<ResponseField name="url" type="string" required>
+  The destination URL.
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  The endpoint description.
+</ResponseField>
+
+<ResponseField name="disabled" type="boolean">
+  Whether the endpoint is currently disabled.
+</ResponseField>
+
+<ResponseField name="filterTypes" type="array">
+  Event types this endpoint subscribes to.
+</ResponseField>
+
+<ResponseField name="channels" type="array">
+  Channels this endpoint listens to.
+</ResponseField>
+
+<ResponseField name="throttleRate" type="integer">
+  The configured delivery throttle rate.
+</ResponseField>
+
+<ResponseField name="uid" type="string">
+  Custom unique identifier, if set.
+</ResponseField>
+
+<ResponseField name="metadata" type="object" required>
+  Attached metadata.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 last-updated timestamp.
+</ResponseField>
+
+---
+
+## Get endpoint
+
+**`GET /api/v1/app/{app_id}/endpoint/{endpoint_id}/`**
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix endpoint get app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns the same fields as [Create endpoint](#create-endpoint).
+
+---
+
+## Update endpoint
+
+**`PUT /api/v1/app/{app_id}/endpoint/{endpoint_id}/`**
+
+Full replacement update of an endpoint. `url` is required; all other fields use their defaults if omitted.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<ParamField body="url" type="string" required>
+  The new destination URL.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Updated description.
+</ParamField>
+
+<ParamField body="filterTypes" type="array">
+  Updated list of subscribed event types.
+</ParamField>
+
+<ParamField body="channels" type="array">
+  Updated list of subscribed channels.
+</ParamField>
+
+<ParamField body="disabled" type="boolean">
+  Updated disabled state.
+</ParamField>
+
+<ParamField body="throttleRate" type="integer">
+  Updated throttle rate.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X PUT https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/webhook/v2/"}'
+```
+
+```bash CLI
+svix endpoint update app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  '{"url": "https://example.com/webhook/v2/"}'
+```
+
+</CodeGroup>
+
+---
+
+## Delete endpoint
+
+**`DELETE /api/v1/app/{app_id}/endpoint/{endpoint_id}/`**
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X DELETE https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix endpoint delete app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns `204 No Content` on success.
+
+---
+
+## Get signing secret
+
+**`GET /api/v1/app/{app_id}/endpoint/{endpoint_id}/secret/`**
+
+Retrieve the endpoint's webhook signing secret.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/secret/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix endpoint get-secret app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+<ResponseField name="key" type="string" required>
+  The signing secret in `whsec_<base64>` format, e.g. `whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD`.
+</ResponseField>
+
+---
+
+## Rotate signing secret
+
+**`POST /api/v1/app/{app_id}/endpoint/{endpoint_id}/secret/rotate/`**
+
+Rotate the endpoint's signing secret. The old secret remains valid for a short grace period.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<ParamField body="key" type="string">
+  A specific new secret to use. If omitted (`null`), a new secret is generated automatically. Format: base64-encoded bytes optionally prefixed with `whsec_`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/secret/rotate/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+```bash CLI
+svix endpoint rotate-secret app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns `204 No Content` on success.
+
+---
+
+## Get endpoint stats
+
+**`GET /api/v1/app/{app_id}/endpoint/{endpoint_id}/stats/`**
+
+Retrieve delivery statistics for an endpoint.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<ParamField query="since" type="string">
+  Start of the stats window as an ISO 8601 datetime.
+</ParamField>
+
+<ParamField query="until" type="string">
+  End of the stats window as an ISO 8601 datetime.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/stats/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+</CodeGroup>
+
+<ResponseField name="success" type="integer" required>
+  Number of successfully delivered messages.
+</ResponseField>
+
+<ResponseField name="pending" type="integer" required>
+  Number of messages pending delivery.
+</ResponseField>
+
+<ResponseField name="sending" type="integer" required>
+  Number of messages currently being sent.
+</ResponseField>
+
+<ResponseField name="fail" type="integer" required>
+  Number of failed delivery attempts.
+</ResponseField>

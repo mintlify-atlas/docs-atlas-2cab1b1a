@@ -1,0 +1,136 @@
+---
+title: "JavaScript / TypeScript SDK"
+description: "Send webhooks and verify signatures with the official Svix JavaScript and TypeScript library."
+---
+
+## Installation
+
+<CodeGroup>
+
+```bash npm
+npm install svix
+```
+
+```bash yarn
+yarn add svix
+```
+
+```bash pnpm
+pnpm add svix
+```
+
+</CodeGroup>
+
+The package is published as `svix` on npm (version `1.90.0`). It ships CommonJS and TypeScript type declarations and works in Node.js and edge runtimes that provide a global `fetch`.
+
+## Initializing the client
+
+```typescript
+import { Svix } from "svix";
+
+const svix = new Svix("AUTH_TOKEN");
+```
+
+The client automatically detects the region suffix on your token (`.us`, `.eu`, `.in`, `.ca`, `.au`) and routes requests to the correct regional API endpoint. You can override this with `serverUrl`:
+
+```typescript
+const svix = new Svix("AUTH_TOKEN", {
+  serverUrl: "https://api.eu.svix.com",
+});
+```
+
+### `SvixOptions`
+
+| Option              | Type                  | Default | Description                                                  |
+| :------------------ | :-------------------- | :------ | :----------------------------------------------------------- |
+| `serverUrl`         | `string`              | —       | Override the API base URL                                    |
+| `numRetries`        | `number`              | `2`     | Number of retries on server errors or timeouts               |
+| `retryScheduleInMs` | `number[]`            | —       | Custom retry delay schedule (ms); overrides `numRetries`     |
+| `requestTimeout`    | `number`              | —       | Request timeout in milliseconds                              |
+| `fetch`             | `typeof fetch`        | —       | Custom fetch implementation                                  |
+| `debug`             | `boolean`             | `false` | Enable debug logging                                         |
+
+## Sending a webhook
+
+<Steps>
+
+### Create an application
+
+An application represents a single tenant in your system.
+
+```typescript
+const app = await svix.application.create({ name: "my-app" });
+console.log(app.id); // app_...
+```
+
+### Send a message
+
+```typescript
+const msg = await svix.message.create(app.id, {
+  eventType: "invoice.paid",
+  payload: {
+    type: "invoice.paid",
+    invoiceId: "invoice_123",
+    amount: 9900,
+  },
+});
+console.log(msg.id); // msg_...
+```
+
+</Steps>
+
+## Verifying a webhook
+
+Use the `Webhook` class to validate signatures on incoming payloads. Pass the endpoint secret (found in your Svix dashboard) and the raw request body plus headers.
+
+```typescript
+import { Webhook } from "svix";
+
+const wh = new Webhook("whsec_<your-endpoint-secret>");
+
+// In an Express handler:
+app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  try {
+    const payload = wh.verify(req.body, {
+      "svix-id": req.headers["svix-id"] as string,
+      "svix-timestamp": req.headers["svix-timestamp"] as string,
+      "svix-signature": req.headers["svix-signature"] as string,
+    });
+    console.log("Verified payload:", payload);
+    res.status(200).send();
+  } catch (err) {
+    console.error("Verification failed:", err);
+    res.status(400).send();
+  }
+});
+```
+
+<Warning>
+  Always pass the **raw, unmodified** request body to `verify`. Parsing the body
+  as JSON before verification will cause signature mismatches.
+</Warning>
+
+## Available client properties
+
+| Property                      | Description                                        |
+| :---------------------------- | :------------------------------------------------- |
+| `svix.application`            | Create and manage applications                     |
+| `svix.authentication`         | Generate dashboard access tokens                   |
+| `svix.backgroundTask`         | Track long-running background jobs                 |
+| `svix.connector`              | Manage connectors                                  |
+| `svix.endpoint`               | Create, update, and delete webhook endpoints       |
+| `svix.environment`            | Import and export environment configuration        |
+| `svix.eventType`              | Manage event type schemas                          |
+| `svix.health`                 | Check API health                                   |
+| `svix.ingest`                 | Manage ingest sources                              |
+| `svix.integration`            | Manage third-party integrations                    |
+| `svix.message`                | Send webhook messages                              |
+| `svix.messageAttempt`         | Inspect and retry delivery attempts                |
+| `svix.operationalWebhook`     | Subscribe to Svix operational events               |
+| `svix.operationalWebhookEndpoint` | Manage operational webhook endpoints           |
+| `svix.statistics`             | Aggregate usage statistics                         |
+| `svix.streaming`              | Manage event streams                               |
+
+<Tip>
+  All methods return promises. Use `async/await` or `.then()` to handle results.
+</Tip>

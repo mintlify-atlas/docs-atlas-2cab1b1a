@@ -1,0 +1,166 @@
+---
+title: "Verifying Webhook Payloads"
+description: "Authenticate incoming webhooks and prevent replay attacks by verifying Svix signatures."
+---
+
+Every webhook Svix delivers is signed. Verifying that signature before processing the payload guarantees two things:
+
+- **Authenticity** — the request really came from Svix and has not been tampered with.
+- **Replay-attack prevention** — an attacker cannot capture a legitimate request and replay it later, because Svix rejects payloads whose timestamp falls outside a ±5 minute window.
+
+## Required headers
+
+Svix attaches three headers to every delivery:
+
+| Header | Description |
+|---|---|
+| `svix-id` | Unique message identifier. Stable across retries. |
+| `svix-timestamp` | Unix timestamp (seconds) of when the message was sent. |
+| `svix-signature` | One or more `v1,<base64-HMAC-SHA256>` signatures, space-separated. |
+
+All three must be present. If any is missing, verification will fail immediately.
+
+<Note>
+  The `Webhook` class also accepts the unbranded equivalents (`webhook-id`, `webhook-timestamp`, `webhook-signature`) used by the Standard Webhooks specification.
+</Note>
+
+## Verifying with the Svix SDK
+
+<Steps>
+
+  <Step title="Obtain your signing secret">
+    Copy the **Signing Secret** from the Svix dashboard for the endpoint you want to verify. It starts with `whsec_` and is base64-encoded.
+  </Step>
+
+  <Step title="Pass the raw body and headers to Webhook.verify">
+    Use the raw, unparsed request body — not a re-serialized JSON object. Any whitespace or key-ordering difference will invalidate the signature.
+
+    <CodeGroup>
+
+    ```typescript TypeScript
+    import { Webhook, WebhookVerificationError } from "svix";
+
+    const secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+
+    // In an Express handler, for example:
+    export async function POST(req: Request) {
+      const payload = await req.text(); // raw body as string
+      const headers = {
+        "svix-id": req.headers.get("svix-id") ?? "",
+        "svix-timestamp": req.headers.get("svix-timestamp") ?? "",
+        "svix-signature": req.headers.get("svix-signature") ?? "",
+      };
+
+      const wh = new Webhook(secret);
+
+      let event: unknown;
+      try {
+        event = wh.verify(payload, headers);
+      } catch (err) {
+        if (err instanceof WebhookVerificationError) {
+          return new Response("Invalid signature", { status: 400 });
+        }
+        throw err;
+      }
+
+      // Safe to process `event` here
+      console.log(event);
+      return new Response("OK");
+    }
+    ```
+
+    ```python Python
+    from svix.webhooks import Webhook, WebhookVerificationError
+
+    secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
+
+    # In a Flask or FastAPI handler, for example:
+    def handle_webhook(raw_body: bytes, headers: dict) -> None:
+        wh = Webhook(secret)
+
+        try:
+            event = wh.verify(raw_body, {
+                "svix-id": headers.get("svix-id", ""),
+                "svix-timestamp": headers.get("svix-timestamp", ""),
+                "svix-signature": headers.get("svix-signature", ""),
+            })
+        except WebhookVerificationError:
+            # Return 400 to the caller
+            raise
+
+        # Safe to process `event` here
+        print(event)
+    ```
+
+    ```go Go
+    package main
+
+    import (
+        "fmt"
+        "io"
+        "net/http"
+
+        svix "github.com/svix/svix-webhooks/go"
+    )
+
+    const secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
+
+    func handleWebhook(w http.ResponseWriter, r *http.Request) {
+        payload, err := io.ReadAll(r.Body)
+        if err != nil {
+            http.Error(w, "cannot read body", http.StatusBadRequest)
+            return
+        }
+
+        wh, err := svix.NewWebhook(secret)
+        if err != nil {
+            http.Error(w, "invalid secret", http.StatusInternalServerError)
+            return
+        }
+
+        err = wh.Verify(payload, r.Header)
+        if err != nil {
+            http.Error(w, "invalid signature", http.StatusBadRequest)
+            return
+        }
+
+        // Safe to process payload here
+        fmt.Println(string(payload))
+        w.WriteHeader(http.StatusNoContent)
+    }
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Return a 2xx response">
+    Return any `2xx` status code to acknowledge receipt. Svix will retry deliveries that receive a non-`2xx` response or time out.
+  </Step>
+
+</Steps>
+
+## Handling WebhookVerificationError
+
+`Webhook.verify` (TypeScript/Python) and `wh.Verify` (Go) raise or return an error whenever verification fails — including when:
+
+- A required header is missing.
+- The HMAC signature does not match.
+- The timestamp is outside the tolerance window.
+
+<Warning>
+  Always return `400 Bad Request` (not `200`) for failed verifications. Returning `200` for unverified payloads can mask security issues and confuse retry logic.
+</Warning>
+
+## Timestamp tolerance
+
+The Go implementation defines the tolerance explicitly:
+
+```go go/webhook.go
+var tolerance time.Duration = 5 * time.Minute
+```
+
+Svix rejects messages whose `svix-timestamp` is more than **5 minutes** in the past or future relative to the server's clock. Keep your server clock synchronized (e.g. via NTP) to avoid spurious failures.
+
+<Tip>
+  If you need to verify a signature without enforcing the timestamp (e.g. in tests), the Go SDK exposes `wh.VerifyIgnoringTimestamp(payload, headers)`. Use this only in non-production scenarios.
+</Tip>

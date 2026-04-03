@@ -1,0 +1,127 @@
+---
+title: "C# SDK"
+description: "Send webhooks and verify signatures with the official Svix C# (.NET) library."
+---
+
+## Installation
+
+```bash
+dotnet add package Svix
+```
+
+The package is published as `Svix` on NuGet. Requires .NET 5.0 or later.
+
+## Initializing the client
+
+```csharp
+using Svix;
+
+var svix = new SvixClient("AUTH_TOKEN");
+```
+
+The client automatically detects the region suffix on your token (`.us`, `.eu`, `.in`, `.ca`, `.au`) and routes requests to the correct regional API endpoint. Pass a `SvixOptions` to override:
+
+```csharp
+using Svix;
+
+var options = new SvixOptions("https://api.eu.svix.com");
+var svix = new SvixClient("AUTH_TOKEN", options);
+```
+
+## Sending a webhook
+
+<Steps>
+
+### Create an application
+
+```csharp
+using Svix.Models;
+
+var app = await svix.Application.CreateAsync(new ApplicationIn(name: "my-app"));
+Console.WriteLine(app.Id); // app_...
+```
+
+### Send a message
+
+```csharp
+var payload = new Dictionary<string, object>
+{
+    { "type", "invoice.paid" },
+    { "invoiceId", "invoice_123" },
+    { "amount", 9900 },
+};
+
+var msg = await svix.Message.CreateAsync(
+    app.Id,
+    new MessageIn(
+        eventType: "invoice.paid",
+        payload: payload
+    )
+);
+Console.WriteLine(msg.Id); // msg_...
+```
+
+</Steps>
+
+## Verifying a webhook
+
+```csharp
+using System.Net;
+using Svix;
+using Svix.Exceptions;
+
+var wh = new Webhook("whsec_<your-endpoint-secret>");
+
+// In an ASP.NET Core controller:
+[HttpPost("webhook")]
+public IActionResult ReceiveWebhook()
+{
+    using var reader = new StreamReader(Request.Body);
+    var payload = reader.ReadToEnd();
+
+    try
+    {
+        wh.Verify(payload, Request.Headers.GetCommaSeparatedValues);
+        // payload is verified — handle it
+        return Ok();
+    }
+    catch (WebhookVerificationException)
+    {
+        return BadRequest();
+    }
+}
+```
+
+You can also pass a `WebHeaderCollection` directly:
+
+```csharp
+wh.Verify(payload, webHeaderCollection);
+```
+
+<Warning>
+  Pass the **raw, unmodified** request body string to `Verify`. Any JSON parsing
+  beforehand will cause a signature mismatch.
+</Warning>
+
+## Available client properties
+
+| Property                              | Description                                        |
+| :------------------------------------ | :------------------------------------------------- |
+| `svix.Application`                    | Create and manage applications                     |
+| `svix.Authentication`                 | Generate dashboard access tokens                   |
+| `svix.Endpoint`                       | Create, update, and delete webhook endpoints       |
+| `svix.EventType`                      | Manage event type schemas                          |
+| `svix.Health`                         | Check API health                                   |
+| `svix.Ingest`                         | Manage ingest sources                              |
+| `svix.Integration`                    | Manage third-party integrations                    |
+| `svix.Message`                        | Send webhook messages                              |
+| `svix.MessageAttempt`                 | Inspect and retry delivery attempts                |
+| `svix.OperationalWebhook`             | Subscribe to Svix operational events               |
+| `svix.OperationalWebhookEndpoint`     | Manage operational webhook endpoints               |
+| `svix.Statistics`                     | Aggregate usage statistics                         |
+| `svix.Streaming`                      | Manage event streams                               |
+
+<Tip>
+  All resource methods have both synchronous and `Async` variants (e.g.
+  `svix.Message.Create(...)` and `svix.Message.CreateAsync(...)`).
+</Tip>

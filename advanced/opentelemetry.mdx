@@ -1,0 +1,84 @@
+---
+title: "OpenTelemetry"
+description: "Send Svix server trace data to the OpenTelemetry Collector for observability and monitoring."
+---
+
+Svix supports sending tracing information to an [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/), which can then forward spans to a wide range of external observability services.
+
+## Compatible backends
+
+<CardGroup cols={4}>
+  <Card title="DataDog" icon="chart-bar" />
+  <Card title="Jaeger" icon="search" />
+  <Card title="New Relic" icon="chart-line" />
+  <Card title="Prometheus" icon="gauge" />
+  <Card title="Sentry" icon="bug" />
+  <Card title="Signoz" icon="eye" />
+  <Card title="Zipkin" icon="map" />
+</CardGroup>
+
+<Note>
+Some services such as DataDog require a specific fork of the OpenTelemetry Collector that includes their exporter. The most popular is [opentelemetry-collector-contrib](https://github.com/open-telemetry/opentelemetry-collector-contrib).
+</Note>
+
+## Setup
+
+<Steps>
+  <Step title="Set up your observability service">
+    Create an account with a service that supports receiving data from the OpenTelemetry Collector. Consult your chosen service's documentation for the appropriate OpenTelemetry Collector exporter configuration.
+  </Step>
+
+  <Step title="Install and configure the OpenTelemetry Collector">
+    Install the OpenTelemetry Collector, configure it with the appropriate exporter for your service, and start it. Note the gRPC address it is bound to — you will need this in the next step.
+  </Step>
+
+  <Step title="Configure the Svix server">
+    Set `opentelemetry_address` in your `config.toml` to point at the Collector's gRPC address:
+
+    ```toml
+    opentelemetry_address = "http://localhost:4317"
+    ```
+
+    Or via environment variable:
+
+    ```bash
+    SVIX_OPENTELEMETRY_ADDRESS="http://localhost:4317"
+    ```
+  </Step>
+
+  <Step title="Optionally configure sampling and service name">
+    Two additional settings let you control the volume of traces sent and how the service appears in your observability tool:
+
+    ```toml
+    # Fraction of traces to sample (0.0–1.0). Defaults to 1.0 (send all traces).
+    opentelemetry_sample_ratio = 1.0
+
+    # Service name reported to the Collector. Defaults to "svix_server".
+    opentelemetry_service_name = "svix_server"
+    ```
+  </Step>
+
+  <Step title="Start the Svix server">
+    Ensure the OpenTelemetry Collector is running, then start (or restart) the Svix server. Trace data will begin appearing in your chosen observability service.
+  </Step>
+</Steps>
+
+## Configuration reference
+
+| Option | Default | Description |
+|---|---|---|
+| `opentelemetry_address` | _(unset)_ | gRPC address of the OpenTelemetry Collector. Tracing is disabled when omitted. |
+| `opentelemetry_sample_ratio` | `1.0` | Fraction of spans to sample. `1.0` sends all traces; `0.5` sends half. Has no effect if `opentelemetry_address` is not set. |
+| `opentelemetry_service_name` | `"svix_server"` | The service name reported in traces. |
+
+## Svix Bridge
+
+Svix Bridge also supports OpenTelemetry tracing. Configure it in your `svix-bridge.yaml`:
+
+```yaml
+opentelemetry:
+  address: "http://localhost:1234"
+  sample_ratio: 0.5
+  # Optional - default "svix-bridge"
+  service_name: "my-bridge"
+```

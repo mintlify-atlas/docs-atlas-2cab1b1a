@@ -1,0 +1,256 @@
+---
+title: "Event Types"
+description: "Define and manage the event types that describe the structure of your webhook messages."
+---
+
+Event types are named schemas that describe what kind of event a message represents. Endpoints can subscribe to specific event types to filter which messages they receive.
+
+Event type names must match `^[a-zA-Z0-9\-_.]+$` and have a maximum length of 256 characters. Common convention is dot-separated names such as `user.signup` or `invoice.payment.failed`.
+
+## List event types
+
+**`GET /api/v1/event-type/`**
+
+<ParamField query="limit" type="integer">
+  Maximum number of event types to return.
+</ParamField>
+
+<ParamField query="iterator" type="string">
+  Pagination cursor from a prior request.
+</ParamField>
+
+<ParamField query="order" type="string">
+  Sort order. One of `ascending` or `descending`.
+</ParamField>
+
+<ParamField query="includeArchived" type="boolean">
+  When `true`, archived event types are included in the response.
+</ParamField>
+
+<ParamField query="withContent" type="boolean">
+  When `true`, the `schemas` field is included for each event type.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/event-type/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix event-type list
+```
+
+</CodeGroup>
+
+<ResponseField name="data" type="array" required>
+  Array of event type objects.
+</ResponseField>
+
+<ResponseField name="done" type="boolean" required>
+  `true` when there are no more pages.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor for the next page.
+</ResponseField>
+
+---
+
+## Create event type
+
+**`POST /api/v1/event-type/`**
+
+<ParamField body="name" type="string" required>
+  The event type name, e.g. `user.signup`. Must match `^[a-zA-Z0-9\-_.]+$`.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  A human-readable description of when this event is triggered.
+</ParamField>
+
+<ParamField body="schemas" type="object">
+  JSON schema definitions for the event payload, keyed by version number. Each value is a JSON Schema object. Example:
+
+  ```json
+  {
+    "1": {
+      "title": "User Signup Event",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" }
+      },
+      "required": ["userId", "email"]
+    }
+  }
+  ```
+</ParamField>
+
+<ParamField body="archived" type="boolean">
+  Whether the event type is archived (hidden from active use). Defaults to `false`.
+</ParamField>
+
+<ParamField body="deprecated" type="boolean">
+  Whether the event type is deprecated. Defaults to `false`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/event-type/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "user.signup",
+    "description": "A user has signed up"
+  }'
+```
+
+```bash CLI
+svix event-type create '{"name": "user.signup", "description": "A user has signed up"}'
+```
+
+</CodeGroup>
+
+<ResponseField name="name" type="string" required>
+  The event type name.
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  The event type description.
+</ResponseField>
+
+<ResponseField name="schemas" type="object">
+  Versioned JSON schema definitions, if set.
+</ResponseField>
+
+<ResponseField name="archived" type="boolean">
+  Whether the event type is archived.
+</ResponseField>
+
+<ResponseField name="deprecated" type="boolean" required>
+  Whether the event type is deprecated.
+</ResponseField>
+
+<ResponseField name="featureFlag" type="string">
+  Optional feature flag controlling visibility of this event type.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 creation timestamp.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string" required>
+  ISO 8601 last-updated timestamp.
+</ResponseField>
+
+---
+
+## Get event type
+
+**`GET /api/v1/event-type/{event_type_name}/`**
+
+<ParamField path="event_type_name" type="string" required>
+  The event type name, e.g. `user.signup`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/event-type/user.signup/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix event-type get user.signup
+```
+
+</CodeGroup>
+
+Returns the same fields as [Create event type](#create-event-type).
+
+---
+
+## Update event type
+
+**`PUT /api/v1/event-type/{event_type_name}/`**
+
+Full replacement update of an event type. `description` is required.
+
+<ParamField path="event_type_name" type="string" required>
+  The event type name.
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  The updated description.
+</ParamField>
+
+<ParamField body="schemas" type="object">
+  Updated versioned JSON schema definitions.
+</ParamField>
+
+<ParamField body="archived" type="boolean">
+  Updated archived state.
+</ParamField>
+
+<ParamField body="deprecated" type="boolean">
+  Updated deprecated state.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X PUT https://api.svix.com/api/v1/event-type/user.signup/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"description": "Triggered when a new user successfully registers"}'
+```
+
+```bash CLI
+svix event-type update user.signup \
+  '{"description": "Triggered when a new user successfully registers"}'
+```
+
+</CodeGroup>
+
+---
+
+## Delete event type
+
+**`DELETE /api/v1/event-type/{event_type_name}/`**
+
+Archive or permanently delete an event type.
+
+<ParamField path="event_type_name" type="string" required>
+  The event type name.
+</ParamField>
+
+<ParamField query="expunge" type="boolean">
+  When `true`, the event type is permanently deleted. When `false` (default), it is archived and hidden from active use but retained in the system.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+# Archive (default)
+curl -X DELETE https://api.svix.com/api/v1/event-type/user.signup/ \
+  -H "Authorization: Bearer <TOKEN>"
+
+# Permanently delete
+curl -X DELETE "https://api.svix.com/api/v1/event-type/user.signup/?expunge=true" \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix event-type delete user.signup
+```
+
+</CodeGroup>
+
+Returns `204 No Content` on success.
+
+<Note>
+  Archiving an event type prevents it from being used in new messages but does not affect existing messages or delivery history. Permanent deletion (`expunge=true`) cannot be undone.
+</Note>

@@ -1,0 +1,168 @@
+---
+title: "Rust SDK"
+description: "Send webhooks and verify signatures with the official Svix Rust crate."
+---
+
+## Installation
+
+Add `svix` to your `Cargo.toml`:
+
+```toml
+[dependencies]
+svix = "1.90.0"
+tokio = { version = "1", features = ["full"] }
+```
+
+The crate is published as `svix` on crates.io (version `1.90.0`). It is async-first and requires Tokio. The minimum supported Rust version is **1.88**.
+
+### TLS backends
+
+By default the crate uses `rustls`. To use the platform's native TLS instead:
+
+```toml
+svix = { version = "1.90.0", features = ["native-tls"], default-features = false }
+```
+
+## Initializing the client
+
+```rust
+use svix::api::{Svix, SvixOptions};
+
+let svix = Svix::new("AUTH_TOKEN".to_string(), None);
+```
+
+The client automatically detects the region suffix on your token (`.us`, `.eu`, `.in`, `.ca`, `.au`) and routes requests to the correct regional API endpoint. Provide `SvixOptions` to customize behaviour:
+
+```rust
+use std::time::Duration;
+use svix::api::{Svix, SvixOptions};
+
+let svix = Svix::new(
+    "AUTH_TOKEN".to_string(),
+    Some(SvixOptions {
+        server_url: Some("https://api.eu.svix.com".to_string()),
+        timeout: Some(Duration::from_secs(30)),
+        num_retries: Some(3),
+        ..Default::default()
+    }),
+);
+```
+
+| Field             | Type                     | Default         | Description                                          |
+| :---------------- | :----------------------- | :-------------- | :--------------------------------------------------- |
+| `server_url`      | `Option<String>`         | auto-detected   | Override the API base URL                            |
+| `timeout`         | `Option<Duration>`       | `15s`           | Request timeout; `None` disables timeout             |
+| `num_retries`     | `Option<u32>`            | `2`             | Number of retries on server errors                   |
+| `retry_schedule`  | `Option<Vec<Duration>>`  | —               | Custom per-retry delay schedule; overrides `num_retries` |
+| `proxy_address`   | `Option<String>`         | —               | HTTP/HTTPS/SOCKS5 proxy URL                          |
+| `debug`           | `bool`                   | `false`         | Enable debug logging                                 |
+
+## Sending a webhook
+
+<Steps>
+
+### Create an application
+
+```rust
+use svix::api::ApplicationIn;
+
+let app = svix
+    .application()
+    .create(
+        ApplicationIn {
+            name: "my-app".to_string(),
+            ..Default::default()
+        },
+        None,
+    )
+    .await?;
+
+println!("{}", app.id); // app_...
+```
+
+### Send a message
+
+```rust
+use serde_json::json;
+use svix::api::MessageIn;
+
+let msg = svix
+    .message()
+    .create(
+        app.id.clone(),
+        MessageIn {
+            event_type: "invoice.paid".to_string(),
+            payload: json!({
+                "type": "invoice.paid",
+                "invoiceId": "invoice_123",
+                "amount": 9900
+            }),
+            ..Default::default()
+        },
+        None,
+    )
+    .await?;
+
+println!("{}", msg.id); // msg_...
+```
+
+</Steps>
+
+## Verifying a webhook
+
+```rust
+use svix::webhooks::Webhook;
+
+let wh = Webhook::new("whsec_<your-endpoint-secret>")?;
+
+// In an Axum/Actix handler — supply the raw body bytes and HeaderMap:
+async fn handle_webhook(
+    headers: axum::http::HeaderMap,
+    body: axum::body::Bytes,
+) -> axum::http::StatusCode {
+    match wh.verify(&body, &headers) {
+        Ok(()) => {
+            // payload is verified — handle it
+            axum::http::StatusCode::NO_CONTENT
+        }
+        Err(_) => axum::http::StatusCode::UNAUTHORIZED,
+    }
+}
+```
+
+<Warning>
+  Pass the **raw, unmodified** body bytes to `verify`. The verifier reads
+  `svix-id`, `svix-timestamp`, and `svix-signature` from the header map.
+</Warning>
+
+<Note>
+  `Webhook::new` accepts secrets with or without the `whsec_` prefix.
+  Use `Webhook::from_raw` to supply a raw byte slice.
+</Note>
+
+## Available client methods
+
+Call resource methods directly on the `Svix` struct. Each returns a resource handle that exposes async API methods.
+
+| Method                           | Description                                        |
+| :------------------------------- | :------------------------------------------------- |
+| `svix.application()`             | Create and manage applications                     |
+| `svix.authentication()`          | Generate dashboard access tokens                   |
+| `svix.background_task()`         | Track long-running background jobs                 |
+| `svix.connector()`               | Manage connectors                                  |
+| `svix.endpoint()`                | Create, update, and delete webhook endpoints       |
+| `svix.environment()`             | Import and export environment configuration        |
+| `svix.event_type()`              | Manage event type schemas                          |
+| `svix.ingest()`                  | Manage ingest sources                              |
+| `svix.integration()`             | Manage third-party integrations                    |
+| `svix.message()`                 | Send webhook messages                              |
+| `svix.message_attempt()`         | Inspect and retry delivery attempts                |
+| `svix.operational_webhook()`     | Subscribe to Svix operational events               |
+| `svix.statistics()`              | Aggregate usage statistics                         |
+| `svix.streaming()`               | Manage event streams                               |
+
+<Tip>
+  `Svix` implements `Clone` cheaply — the underlying Hyper client and TLS
+  connector are shared via `Arc`. Use `svix.with_token(new_token)` to create a
+  client with a different token without re-initializing TLS.
+</Tip>

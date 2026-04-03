@@ -1,0 +1,77 @@
+---
+title: "Introduction"
+description: "Svix is the enterprise-ready webhooks service — send webhooks with a single API call and let Svix handle deliverability, retries, and security."
+---
+
+Svix makes it easy to send webhooks reliably at scale. You make one API call, and Svix takes care of delivery, automatic retries, signature verification, and more — across 9 official language SDKs.
+
+Whether you're building a SaaS product that needs to notify customers of events, or consuming webhooks from third-party services, Svix has you covered.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Send your first webhook in minutes with step-by-step instructions.
+  </Card>
+  <Card title="Self-Hosting" icon="server" href="/self-hosting/deployment">
+    Deploy the open-source Svix server with Docker or build from source.
+  </Card>
+  <Card title="SDK Reference" icon="code" href="/sdks/overview">
+    Explore official SDKs for JavaScript, Python, Go, Java, Ruby, PHP, C#, and Rust.
+  </Card>
+  <Card title="API Reference" icon="rectangle-terminal" href="/api/applications">
+    Full REST API documentation with parameters, responses, and examples.
+  </Card>
+</CardGroup>
+
+## How Svix works
+
+Svix is organized around a few core concepts:
+
+- **Applications** — represent your customers or tenants. Each application has its own set of endpoints and message history.
+- **Event Types** — define the schema and shape of events your platform produces.
+- **Messages** — the individual webhook payloads you send to your customers.
+- **Endpoints** — the URLs your customers register to receive webhook deliveries.
+
+<CardGroup cols={2}>
+  <Card title="Applications" icon="grid-2" href="/sending/applications">
+    Create and manage applications representing your customers.
+  </Card>
+  <Card title="Event Types" icon="tag" href="/sending/event-types">
+    Define the events your platform sends to customers.
+  </Card>
+  <Card title="Messages" icon="paper-plane" href="/sending/messages">
+    Send webhook messages to your customers' registered endpoints.
+  </Card>
+  <Card title="Endpoints" icon="link" href="/sending/endpoints">
+    Manage where webhook deliveries are sent.
+  </Card>
+</CardGroup>
+
+## Receiving webhooks
+
+If you're consuming webhooks — not sending them — Svix provides signature verification libraries to validate incoming payloads securely.
+
+<CardGroup cols={2}>
+  <Card title="Verifying Payloads" icon="shield-check" href="/receiving/verifying-payloads">
+    Verify webhook signatures to ensure payloads are authentic.
+  </Card>
+  <Card title="Consumer App Portal" icon="browser" href="/receiving/consumer-app-portal">
+    Give your customers a self-service portal to manage their webhook endpoints.
+  </Card>
+</CardGroup>
+
+## Advanced features
+
+<CardGroup cols={2}>
+  <Card title="Security" icon="lock" href="/advanced/security">
+    Symmetric and asymmetric signing, replay attack prevention, and SSRF protection.
+  </Card>
+  <Card title="Svix Bridge" icon="bridge" href="/advanced/bridge">
+    Integrate with Kafka, RabbitMQ, SQS, GCP Pub/Sub, and Redis.
+  </Card>
+  <Card title="Operational Webhooks" icon="bell" href="/advanced/operational-webhooks">
+    Get notified when endpoints fail, recover, or are updated.
+  </Card>
+  <Card title="CLI Tool" icon="terminal" href="/cli/installation">
+    Test and debug webhooks locally with the Svix CLI.
+  </Card>
+</CardGroup>

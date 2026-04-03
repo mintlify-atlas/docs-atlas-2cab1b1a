@@ -1,0 +1,392 @@
+---
+title: "Applications"
+description: "Manage applications — one per customer or tenant — to scope webhook delivery in Svix."
+---
+
+In Svix, an **application** represents a single customer or tenant in your system. Every message you send and every endpoint your customers register belongs to an application. Keeping applications isolated ensures that webhooks for one customer never leak to another.
+
+<Note>
+  Create one application per customer. You typically do this when a new user or
+  organization signs up for your product.
+</Note>
+
+## Application identifiers
+
+Each application has two identifiers:
+
+- **`id`** — A Svix-generated unique ID (e.g. `app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL`). Use this in API calls.
+- **`uid`** — An optional identifier you supply, usually your own internal customer ID. If set, you can reference the application by `uid` instead of `id` in any API call that accepts `appId`.
+
+<Tip>
+  Set `uid` to your own user or organization ID. This lets you look up applications
+  by your own identifiers without storing the Svix-generated `id`.
+</Tip>
+
+## Creating an application
+
+<Steps>
+  <Step title="Initialize the Svix client">
+    Instantiate the client with your API key. Use the environment that matches
+    your Svix account region.
+
+    <CodeGroup>
+
+    ```typescript typescript
+    import { Svix } from "svix";
+
+    const svix = new Svix("YOUR_AUTH_TOKEN");
+    ```
+
+    ```python python
+    from svix.api import SvixAsync
+    from svix import SvixOptions
+
+    svix = SvixAsync("YOUR_AUTH_TOKEN")
+    ```
+
+    ```go go
+    import svix "github.com/svix/svix-webhooks/go"
+
+    svixClient, err := svix.New("YOUR_AUTH_TOKEN", nil)
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create the application">
+    Pass a `name` and, optionally, a `uid` that maps to your own customer ID.
+
+    <CodeGroup>
+
+    ```typescript typescript
+    const app = await svix.application.create({
+      name: "Acme Corp",
+      uid: "usr_2NuV5JnHvOAuBGJxNdVxfO",
+    });
+
+    console.log(app.id); // app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL
+    ```
+
+    ```python python
+    from svix.models import ApplicationIn
+
+    app = await svix.application.create(
+        ApplicationIn(
+            name="Acme Corp",
+            uid="usr_2NuV5JnHvOAuBGJxNdVxfO",
+        )
+    )
+
+    print(app.id)  # app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL
+    ```
+
+    ```go go
+    import "github.com/svix/svix-webhooks/go/models"
+
+    uid := "usr_2NuV5JnHvOAuBGJxNdVxfO"
+    app, err := svixClient.Application.Create(
+        ctx,
+        models.ApplicationIn{
+            Name: "Acme Corp",
+            Uid:  &uid,
+        },
+        nil,
+    )
+    ```
+
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Get or create
+
+If you want to ensure an application exists without risking a duplicate, use `getOrCreate`. It returns the existing application when one with the given `uid` already exists, and creates a new one otherwise.
+
+<CodeGroup>
+
+```typescript typescript
+const app = await svix.application.getOrCreate({
+  name: "Acme Corp",
+  uid: "usr_2NuV5JnHvOAuBGJxNdVxfO",
+});
+```
+
+```python python
+from svix.models import ApplicationIn
+
+app = await svix.application.get_or_create(
+    ApplicationIn(
+        name="Acme Corp",
+        uid="usr_2NuV5JnHvOAuBGJxNdVxfO",
+    )
+)
+```
+
+```go go
+uid := "usr_2NuV5JnHvOAuBGJxNdVxfO"
+app, err := svixClient.Application.GetOrCreate(
+    ctx,
+    models.ApplicationIn{
+        Name: "Acme Corp",
+        Uid:  &uid,
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+<Tip>
+  `getOrCreate` is safe to call on every login or API request — it is idempotent
+  when `uid` is set.
+</Tip>
+
+## Listing applications
+
+Retrieve a paginated list of all applications in your organization.
+
+<CodeGroup>
+
+```typescript typescript
+const apps = await svix.application.list({ limit: 50 });
+
+for (const app of apps.data) {
+  console.log(app.id, app.name);
+}
+```
+
+```python python
+from svix.api import ApplicationListOptions
+
+apps = await svix.application.list(ApplicationListOptions(limit=50))
+
+for app in apps.data:
+    print(app.id, app.name)
+```
+
+```go go
+limit := uint64(50)
+apps, err := svixClient.Application.List(ctx, &svix.ApplicationListOptions{
+    Limit: &limit,
+})
+
+for _, app := range apps.Data {
+    fmt.Println(app.Id, app.Name)
+}
+```
+
+</CodeGroup>
+
+Use the `iterator` field from the response to fetch the next page:
+
+<CodeGroup>
+
+```typescript typescript
+let iterator: string | null = null;
+
+do {
+  const page = await svix.application.list({ limit: 50, iterator });
+  iterator = page.iterator ?? null;
+  // process page.data
+} while (iterator);
+```
+
+```python python
+iterator = None
+
+while True:
+    page = await svix.application.list(ApplicationListOptions(limit=50, iterator=iterator))
+    # process page.data
+    if not page.iterator:
+        break
+    iterator = page.iterator
+```
+
+```go go
+var iterator *string
+
+for {
+    page, err := svixClient.Application.List(ctx, &svix.ApplicationListOptions{
+        Limit:    &limit,
+        Iterator: iterator,
+    })
+    if err != nil {
+        break
+    }
+    // process page.Data
+    if page.Iterator == nil {
+        break
+    }
+    iterator = page.Iterator
+}
+```
+
+</CodeGroup>
+
+### Filter options
+
+<ResponseField name="limit" type="number">
+  Maximum number of applications to return per page.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor from a previous response used to fetch the next page.
+</ResponseField>
+
+<ResponseField name="excludeAppsWithNoEndpoints" type="boolean">
+  Omit applications that have no endpoints registered.
+</ResponseField>
+
+<ResponseField name="excludeAppsWithDisabledEndpoints" type="boolean">
+  Omit applications that have endpoints but all are disabled.
+</ResponseField>
+
+<ResponseField name="order" type="string">
+  Sort order: `ascending` or `descending`.
+</ResponseField>
+
+## Getting an application
+
+Retrieve a single application by its Svix ID or your `uid`.
+
+<CodeGroup>
+
+```typescript typescript
+// by Svix ID
+const app = await svix.application.get("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL");
+
+// by your uid
+const app = await svix.application.get("usr_2NuV5JnHvOAuBGJxNdVxfO");
+```
+
+```python python
+# by Svix ID
+app = await svix.application.get("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL")
+
+# by your uid
+app = await svix.application.get("usr_2NuV5JnHvOAuBGJxNdVxfO")
+```
+
+```go go
+// by Svix ID
+app, err := svixClient.Application.Get(ctx, "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL")
+
+// by your uid
+app, err := svixClient.Application.Get(ctx, "usr_2NuV5JnHvOAuBGJxNdVxfO")
+```
+
+</CodeGroup>
+
+## Updating an application
+
+Use `update` to fully replace an application's fields, or `patch` to change only specific fields.
+
+<CodeGroup>
+
+```typescript typescript
+// Full update — replaces all fields
+const updated = await svix.application.update(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  { name: "Acme Corp (renamed)" }
+);
+
+// Partial update — only changes the provided fields
+const patched = await svix.application.patch(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  { name: "Acme Corp (renamed)" }
+);
+```
+
+```python python
+from svix.models import ApplicationIn, ApplicationPatch
+
+# Full update
+updated = await svix.application.update(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    ApplicationIn(name="Acme Corp (renamed)"),
+)
+
+# Partial update
+patched = await svix.application.patch(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    ApplicationPatch(name="Acme Corp (renamed)"),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+// Full update
+updated, err := svixClient.Application.Update(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.ApplicationIn{Name: "Acme Corp (renamed)"},
+)
+
+// Partial update
+name := "Acme Corp (renamed)"
+patched, err := svixClient.Application.Patch(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.ApplicationPatch{Name: &name},
+)
+```
+
+</CodeGroup>
+
+## Deleting an application
+
+Deleting an application permanently removes it along with all its endpoints and message history.
+
+<Warning>
+  Deletion is permanent. All message history and endpoint configurations
+  associated with the application will be lost.
+</Warning>
+
+<CodeGroup>
+
+```typescript typescript
+await svix.application.delete("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL");
+```
+
+```python python
+await svix.application.delete("app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL")
+```
+
+```go go
+err := svixClient.Application.Delete(ctx, "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL")
+```
+
+</CodeGroup>
+
+## Application fields
+
+<ResponseField name="id" type="string" required>
+  The Svix-generated application ID.
+</ResponseField>
+
+<ResponseField name="name" type="string" required>
+  Human-readable name for the application.
+</ResponseField>
+
+<ResponseField name="uid" type="string">
+  Optional user-supplied identifier. Can be used in place of `id` in any API
+  call that accepts `appId`.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  A key-value map of arbitrary string metadata you can attach to the application.
+</ResponseField>
+
+<ResponseField name="throttleRate" type="number">
+  Maximum messages per second that will be delivered to endpoints in this
+  application. Outgoing messages are throttled to this rate.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the application was created.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of the last update.
+</ResponseField>

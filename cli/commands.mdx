@@ -1,0 +1,266 @@
+---
+title: "Commands"
+description: "Reference for all Svix CLI commands, subcommands, and usage examples."
+---
+
+Run `svix help` for a summary of available commands, or append `--help` to any command for detailed usage.
+
+```bash
+svix [command] --help
+```
+
+## login
+
+Interactively configure your Svix API credentials. Authenticates via the Svix dashboard or accepts a manually entered token.
+
+```bash
+svix login
+```
+
+## application
+
+List, create, and modify applications.
+
+| Subcommand | Description |
+| ---------- | ----------- |
+| `list`     | List all applications |
+| `create`   | Create a new application |
+| `get`      | Get an application by ID |
+| `update`   | Update an application |
+| `delete`   | Delete an application |
+
+```bash
+# Create an application
+svix application create '{"name": "demo"}'
+
+# List applications (paginated)
+svix application list --limit 2 --iterator some_iterator
+
+# Get a specific application
+svix application get app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Update an application
+svix application update app_1srOrx2ZWZBpBUvZwXKQmoEYga2 '{"name": "renamed-app"}'
+
+# Delete an application
+svix application delete app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+## authentication
+
+Manage authentication tasks such as generating Consumer Application Portal access links.
+
+| Subcommand          | Description |
+| ------------------- | ----------- |
+| `app-portal-access` | Get a magic link for the Consumer Application Portal |
+| `expire-all`        | Expire all tokens for an application |
+| `logout`            | Logout the current app token |
+
+```bash
+# Get a portal access URL for an application
+svix authentication app-portal-access app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Expire all tokens for an application
+svix authentication expire-all app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+## endpoint
+
+List, create, and modify endpoints within an application.
+
+| Subcommand      | Description |
+| --------------- | ----------- |
+| `list`          | List all endpoints for an application |
+| `create`        | Create a new endpoint |
+| `get`           | Get an endpoint by ID |
+| `update`        | Update an endpoint |
+| `delete`        | Delete an endpoint |
+| `get-secret`    | Get the signing secret for an endpoint |
+| `rotate-secret` | Rotate the signing secret for an endpoint |
+
+```bash
+# List endpoints
+svix endpoint list app_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Create an endpoint
+svix endpoint create app_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  '{"url": "https://example.com/webhook/", "description": "My endpoint"}'
+
+# Get an endpoint
+svix endpoint get app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Update an endpoint
+svix endpoint update app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  '{"url": "https://example.com/webhook/v2/", "description": "Updated endpoint"}'
+
+# Delete an endpoint
+svix endpoint delete app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Get the signing secret
+svix endpoint get-secret app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Rotate the signing secret
+svix endpoint rotate-secret app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+## event-type
+
+List, create, and modify event types.
+
+| Subcommand | Description |
+| ---------- | ----------- |
+| `list`     | List all event types |
+| `create`   | Create a new event type |
+| `get`      | Get an event type by name |
+| `update`   | Update an event type |
+| `delete`   | Delete (archive) an event type |
+
+```bash
+# List event types
+svix event-type list
+
+# Create an event type
+svix event-type create '{"name": "user.signup", "description": "A user has signed up"}'
+
+# Get an event type
+svix event-type get user.signup
+
+# Update an event type
+svix event-type update user.signup '{"description": "Triggered when a new user registers"}'
+
+# Delete an event type
+svix event-type delete user.signup
+```
+
+## message
+
+List and create messages within an application.
+
+| Subcommand | Description |
+| ---------- | ----------- |
+| `list`     | List all messages for an application |
+| `create`   | Create and dispatch a new message |
+| `get`      | Get a message by ID or eventId |
+
+```bash
+# Create a message
+svix message create app_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  '{"eventType": "user.signup", "payload": {"username": "test_user", "email": "test@example.com"}}'
+
+# List messages with filtering
+svix message list app_1srOrx2ZWZBpBUvZwXKQmoEYga2 --limit 10
+
+# Get a message
+svix message get app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+## message-attempt
+
+List, look up, and resend message delivery attempts.
+
+| Subcommand                    | Description |
+| ----------------------------- | ----------- |
+| `list-by-msg`                 | List attempts for a specific message |
+| `list-by-endpoint`            | List attempts for a specific endpoint |
+| `list-attempted-messages`     | List messages attempted to an endpoint |
+| `list-attempted-destinations` | List endpoints attempted for a message |
+| `get`                         | Get a specific attempt |
+| `resend`                      | Resend a message to an endpoint |
+
+```bash
+# List attempts for a message
+svix message-attempt list-by-msg app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# List attempts for an endpoint
+svix message-attempt list-by-endpoint app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Get a specific attempt
+svix message-attempt get app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2 atmpt_1srOrx2ZWZBpBUvZwXKQmoEYga2
+
+# Resend a message to an endpoint
+svix message-attempt resend app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+## signature
+
+Sign or verify a webhook payload signature using the Svix webhook signing scheme.
+
+| Subcommand | Description |
+| ---------- | ----------- |
+| `sign`     | Generate a signature for a webhook payload |
+| `verify`   | Verify the signature of a webhook message |
+
+```bash
+# Sign a payload
+svix signature sign \
+  --secret whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD \
+  --msg-id msg_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  --timestamp 1614265330 \
+  '{"eventType":"user.signup","payload":{"username":"test"}}'
+
+# Verify a signature
+svix signature verify \
+  --secret whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD \
+  --msg-id msg_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  --timestamp 1614265330 \
+  --signature v1,g0hM9SsE+OTPJTGezF9lkfyQMFzd6TFpMlwEmAj51DI= \
+  '{"eventType":"user.signup","payload":{"username":"test"}}'
+```
+
+## listen
+
+Create an on-the-fly publicly accessible URL and forward incoming webhook requests to a local URL. Useful for local development without port-forwarding.
+
+<Note>
+  You do not need a Svix account to use the `listen` command.
+</Note>
+
+```bash
+svix listen http://localhost:8000/webhook/
+```
+
+Example output:
+
+```
+Webhook Relay is now listening at:
+https://play.svix.com/in/c_tSdQhb4Q5PTF5m2juiWu8qFREqE/
+
+All requests on this endpoint will be forwarded to your local URL:
+http://localhost:8000/webhook/
+
+View logs and debug information at:
+https://play.svix.com/view/c_tSdQhb4Q5PTF5m2juiWu8qFREqE/
+```
+
+All POST requests received at the relay URL are forwarded to your local server.
+
+## open
+
+Quickly open Svix-related pages in your browser.
+
+```bash
+svix open
+```
+
+## completion
+
+Generate a shell completion script. Supported shells: `bash`, `zsh`, `fish`, `elvish`, `powershell`.
+
+```bash
+svix completion bash
+svix completion zsh
+svix completion fish
+
+# Auto-load in shell rc file
+eval "$(svix completion bash)"
+```
+
+Run `svix completion --help` for per-shell setup instructions.
+
+## version
+
+Print the version of the installed Svix CLI.
+
+```bash
+svix version
+```

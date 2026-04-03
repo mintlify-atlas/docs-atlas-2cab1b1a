@@ -1,0 +1,294 @@
+---
+title: "Message Attempts"
+description: "Inspect and retry webhook delivery attempts for messages and endpoints."
+---
+
+A message attempt represents one delivery attempt of a message to a specific endpoint. Svix retries failed deliveries automatically with exponential backoff; you can also trigger a manual resend.
+
+## Message status codes
+
+| Value | Name | Description |
+| ----- | ---- | ----------- |
+| `0` | Success | The message was delivered successfully. |
+| `1` | Pending | The message is queued and has not been attempted yet. |
+| `2` | Fail | All retry attempts have been exhausted. |
+| `3` | Sending | A delivery attempt is currently in progress. |
+
+## Trigger types
+
+| Value | Name | Description |
+| ----- | ---- | ----------- |
+| `0` | Scheduled | Attempt was triggered by the automatic retry schedule. |
+| `1` | Manual | Attempt was triggered by a manual resend request. |
+
+---
+
+## List attempts for a message
+
+**`GET /api/v1/app/{app_id}/attempt/msg/{msg_id}/`**
+
+List all delivery attempts for a specific message.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="msg_id" type="string" required>
+  The message's ID or `eventId`.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of attempts to return.
+</ParamField>
+
+<ParamField query="iterator" type="string">
+  Pagination cursor from a prior request.
+</ParamField>
+
+<ParamField query="status" type="integer">
+  Filter by attempt status: `0` (Success), `1` (Pending), `2` (Failed), `3` (Sending).
+</ParamField>
+
+<ParamField query="statusCodeClass" type="integer">
+  Filter by HTTP status code class: `0` (none), `100`, `200`, `300`, `400`, `500`.
+</ParamField>
+
+<ParamField query="endpointId" type="string">
+  Filter attempts to a specific endpoint ID.
+</ParamField>
+
+<ParamField query="channel" type="string">
+  Filter by channel.
+</ParamField>
+
+<ParamField query="before" type="string">
+  Only include attempts created before this ISO 8601 datetime.
+</ParamField>
+
+<ParamField query="after" type="string">
+  Only include attempts created after this ISO 8601 datetime.
+</ParamField>
+
+<ParamField query="withContent" type="boolean">
+  When `true`, attempt response content is included.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/attempt/msg/msg_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message-attempt list-by-msg app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+<Note>
+  By default this endpoint retrieves 90 days of data. Use `before` or `after` to query data outside that window.
+</Note>
+
+<ResponseField name="data" type="array" required>
+  Array of attempt objects.
+</ResponseField>
+
+<ResponseField name="done" type="boolean" required>
+  `true` when there are no more pages.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor for the next page.
+</ResponseField>
+
+---
+
+## List attempts for an endpoint
+
+**`GET /api/v1/app/{app_id}/attempt/endpoint/{endpoint_id}/`**
+
+List all delivery attempts for a specific endpoint. Includes metadata about the associated message.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of attempts to return.
+</ParamField>
+
+<ParamField query="iterator" type="string">
+  Pagination cursor from a prior request.
+</ParamField>
+
+<ParamField query="status" type="integer">
+  Filter by attempt status.
+</ParamField>
+
+<ParamField query="statusCodeClass" type="integer">
+  Filter by HTTP status code class.
+</ParamField>
+
+<ParamField query="channel" type="string">
+  Filter by channel.
+</ParamField>
+
+<ParamField query="tag" type="string">
+  Filter by tag.
+</ParamField>
+
+<ParamField query="before" type="string">
+  Only include attempts created before this datetime.
+</ParamField>
+
+<ParamField query="after" type="string">
+  Only include attempts created after this datetime.
+</ParamField>
+
+<ParamField query="withContent" type="boolean">
+  Include attempt response content in the response.
+</ParamField>
+
+<ParamField query="withMsg" type="boolean">
+  Include the message information in the response.
+</ParamField>
+
+<ParamField query="eventTypes" type="array">
+  Filter by event type names.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/attempt/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message-attempt list-by-endpoint app_1srOrx2ZWZBpBUvZwXKQmoEYga2 ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+---
+
+## Get attempt
+
+**`GET /api/v1/app/{app_id}/attempt/msg/{msg_id}/{attempt_id}/`**
+
+Retrieve a single delivery attempt.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="msg_id" type="string" required>
+  The message's ID or `eventId`.
+</ParamField>
+
+<ParamField path="attempt_id" type="string" required>
+  The attempt's ID, e.g. `atmpt_1srOrx2ZWZBpBUvZwXKQmoEYga2`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/attempt/msg/msg_1srOrx2ZWZBpBUvZwXKQmoEYga2/atmpt_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message-attempt get \
+  app_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  msg_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  atmpt_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+<ResponseField name="id" type="string" required>
+  Attempt ID, e.g. `atmpt_1srOrx2ZWZBpBUvZwXKQmoEYga2`.
+</ResponseField>
+
+<ResponseField name="msgId" type="string" required>
+  The ID of the message this attempt belongs to.
+</ResponseField>
+
+<ResponseField name="endpointId" type="string" required>
+  The ID of the endpoint this attempt targeted.
+</ResponseField>
+
+<ResponseField name="url" type="string" required>
+  The destination URL for this attempt.
+</ResponseField>
+
+<ResponseField name="response" type="string" required>
+  The response body returned by the endpoint.
+</ResponseField>
+
+<ResponseField name="responseStatusCode" type="integer" required>
+  The HTTP status code returned by the endpoint.
+</ResponseField>
+
+<ResponseField name="responseDurationMs" type="integer" required>
+  Response latency in milliseconds.
+</ResponseField>
+
+<ResponseField name="status" type="integer" required>
+  Delivery status: `0` Success, `1` Pending, `2` Fail, `3` Sending.
+</ResponseField>
+
+<ResponseField name="statusText" type="string" required>
+  Text representation of the status: `success`, `pending`, `fail`, or `sending`.
+</ResponseField>
+
+<ResponseField name="triggerType" type="integer" required>
+  Trigger type: `0` Scheduled, `1` Manual.
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+  ISO 8601 timestamp of when the attempt was made.
+</ResponseField>
+
+---
+
+## Resend message to endpoint
+
+**`POST /api/v1/app/{app_id}/msg/{msg_id}/endpoint/{endpoint_id}/resend/`**
+
+Manually trigger a new delivery attempt for a message to a specific endpoint.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="msg_id" type="string" required>
+  The message's ID or `eventId`.
+</ParamField>
+
+<ParamField path="endpoint_id" type="string" required>
+  The endpoint's ID or UID.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/msg/msg_1srOrx2ZWZBpBUvZwXKQmoEYga2/endpoint/ep_1srOrx2ZWZBpBUvZwXKQmoEYga2/resend/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message-attempt resend \
+  app_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  msg_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  ep_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns `202 Accepted` on success. The new attempt will appear in the attempt list shortly.

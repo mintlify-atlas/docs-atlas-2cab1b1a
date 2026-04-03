@@ -1,0 +1,72 @@
+---
+title: "SDK Overview"
+description: "Official Svix client libraries for sending webhooks and verifying signatures."
+---
+
+Svix provides official, fully-supported SDKs for nine languages. Every SDK ships two features:
+
+- **API operations** — create applications, send messages, manage endpoints, inspect delivery attempts, and more.
+- **Webhook verification** — validate the `svix-id`, `svix-timestamp`, and `svix-signature` headers on incoming payloads using HMAC-SHA256.
+
+<CardGroup cols={3}>
+  <Card title="JavaScript / TypeScript" icon="js" href="/sdks/javascript">
+    npm: `svix` — v1.90.0
+  </Card>
+  <Card title="Python" icon="python" href="/sdks/python">
+    PyPI: `svix` — v1.90.0
+  </Card>
+  <Card title="Go" icon="golang" href="/sdks/go">
+    `github.com/svix/svix-webhooks/go`
+  </Card>
+  <Card title="Java" icon="java" href="/sdks/java">
+    Maven: `com.svix:svix` — v1.90.0
+  </Card>
+  <Card title="C#" icon="microsoft" href="/sdks/csharp">
+    NuGet: `Svix` — v1.90.0
+  </Card>
+  <Card title="Ruby" icon="gem" href="/sdks/ruby">
+    RubyGems: `svix`
+  </Card>
+  <Card title="PHP" icon="php" href="/sdks/php">
+    Packagist: `svix/svix`
+  </Card>
+  <Card title="Rust" icon="rust" href="/sdks/rust">
+    crates.io: `svix` — v1.90.0
+  </Card>
+</CardGroup>
+
+## Feature support
+
+| Language           | API support | Webhook verification |
+| :----------------- | :---------: | :------------------: |
+| JavaScript / TypeScript | ✅     | ✅                   |
+| Python             | ✅          | ✅                   |
+| Go                 | ✅          | ✅                   |
+| Java               | ✅          | ✅                   |
+| Kotlin             | ✅          | ✅                   |
+| C#                 | ✅          | ✅                   |
+| Ruby               | ✅          | ✅                   |
+| PHP                | ✅          | ✅                   |
+| Rust               | ✅          | ✅                   |
+
+## Common client properties
+
+All SDKs expose the same set of namespaced API resources on the top-level client object:
+
+| Property                    | Description                                      |
+| :-------------------------- | :----------------------------------------------- |
+| `application`               | Create and manage applications (tenants)         |
+| `authentication`            | Generate dashboard access tokens                 |
+| `endpoint`                  | Create, update, and delete webhook endpoints     |
+| `message`                   | Send webhook messages                            |
+| `messageAttempt`            | Inspect and retry delivery attempts              |
+| `eventType`                 | Manage event type schemas                        |
+| `integration`               | Manage third-party integrations                  |
+| `operationalWebhook`        | Subscribe to Svix operational events             |
+| `statistics`                | Aggregate usage statistics                       |
+| `backgroundTask`            | Track long-running background jobs               |
+
+<Note>
+  All SDKs automatically detect the region from your authentication token and
+  route requests to the closest regional API endpoint (US, EU, IN, CA, AU).
+</Note>

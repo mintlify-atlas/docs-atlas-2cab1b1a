@@ -1,0 +1,226 @@
+---
+title: "Messages"
+description: "Create and retrieve webhook messages dispatched to application endpoints."
+---
+
+A message represents a single webhook event dispatched to all of an application's endpoints. Messages have an event type, a JSON payload, and optional channels and tags for filtering.
+
+## Create message
+
+**`POST /api/v1/app/{app_id}/msg/`**
+
+Creates a new message and immediately dispatches it to all matching endpoints in the application.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField body="eventType" type="string" required>
+  The event type name, e.g. `user.signup`. Must match `^[a-zA-Z0-9\-_.]+$`. Maximum 256 characters.
+</ParamField>
+
+<ParamField body="payload" type="object" required>
+  The webhook body as a JSON object. Svix supports payloads up to 1 MiB; recommended maximum is 40 KB.
+</ParamField>
+
+<ParamField body="eventId" type="string">
+  Optional unique identifier for the message. Used for idempotency — if a message with the same `eventId` already exists for the application, a `409 Conflict` is returned. Uniqueness is enforced only within a 24-hour window.
+</ParamField>
+
+<ParamField body="channels" type="array">
+  List of free-form channel identifiers. Endpoints can filter by channel. Maximum 5 channels per message.
+</ParamField>
+
+<ParamField body="payloadRetentionPeriod" type="integer">
+  Number of days to retain the message payload. Range: 5–90. Defaults to 90.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/msg/ \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "eventType": "user.signup",
+    "payload": {
+      "username": "test_user",
+      "email": "test@example.com"
+    },
+    "eventId": "unique-msg-identifier"
+  }'
+```
+
+```bash CLI
+svix message create app_1srOrx2ZWZBpBUvZwXKQmoEYga2 \
+  '{"eventType": "user.signup", "payload": {"username": "test_user", "email": "test@example.com"}}'
+```
+
+</CodeGroup>
+
+<ResponseField name="id" type="string" required>
+  The message's unique ID, e.g. `msg_1srOrx2ZWZBpBUvZwXKQmoEYga2`.
+</ResponseField>
+
+<ResponseField name="eventType" type="string" required>
+  The event type of the message.
+</ResponseField>
+
+<ResponseField name="eventId" type="string">
+  The custom event ID, if provided.
+</ResponseField>
+
+<ResponseField name="payload" type="object" required>
+  The message's JSON payload body.
+</ResponseField>
+
+<ResponseField name="channels" type="array">
+  Channel identifiers attached to the message.
+</ResponseField>
+
+<ResponseField name="timestamp" type="string" required>
+  ISO 8601 timestamp of when the message was created.
+</ResponseField>
+
+---
+
+## List messages
+
+**`GET /api/v1/app/{app_id}/msg/`**
+
+List all messages for an application. By default retrieves up to 90 days of history.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of messages to return.
+</ParamField>
+
+<ParamField query="iterator" type="string">
+  Pagination cursor from a prior request.
+</ParamField>
+
+<ParamField query="channel" type="string">
+  Filter messages by channel.
+</ParamField>
+
+<ParamField query="before" type="string">
+  Only include messages created before this ISO 8601 datetime.
+</ParamField>
+
+<ParamField query="after" type="string">
+  Only include messages created after this ISO 8601 datetime.
+</ParamField>
+
+<ParamField query="withContent" type="boolean">
+  When `true`, message payloads are included in the response.
+</ParamField>
+
+<ParamField query="tag" type="string">
+  Filter messages matching this tag.
+</ParamField>
+
+<ParamField query="eventTypes" type="array">
+  Filter by one or more event type names.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET "https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/msg/?limit=20" \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message list app_1srOrx2ZWZBpBUvZwXKQmoEYga2 --limit 20
+```
+
+</CodeGroup>
+
+<Note>
+  By default, this endpoint is limited to 90 days of data relative to now. Use `before` or `after` parameters to query earlier data outside that window.
+</Note>
+
+<ResponseField name="data" type="array" required>
+  Array of message objects.
+</ResponseField>
+
+<ResponseField name="done" type="boolean" required>
+  `true` when there are no more pages.
+</ResponseField>
+
+<ResponseField name="iterator" type="string">
+  Cursor for the next page.
+</ResponseField>
+
+---
+
+## Get message
+
+**`GET /api/v1/app/{app_id}/msg/{msg_id}/`**
+
+Retrieve a single message by its ID or `eventId`.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="msg_id" type="string" required>
+  The message's ID (e.g. `msg_...`) or its custom `eventId`.
+</ParamField>
+
+<ParamField query="withContent" type="boolean">
+  When `true`, the message payload is included in the response.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X GET https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/msg/msg_1srOrx2ZWZBpBUvZwXKQmoEYga2/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message get app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns the same fields as [Create message](#create-message).
+
+---
+
+## Expunge message content
+
+**`POST /api/v1/app/{app_id}/msg/{msg_id}/expunge-content/`**
+
+Delete the payload of a specific message. Useful when a message was accidentally sent with sensitive content.
+
+<ParamField path="app_id" type="string" required>
+  The application's ID or UID.
+</ParamField>
+
+<ParamField path="msg_id" type="string" required>
+  The message's ID or `eventId`.
+</ParamField>
+
+<CodeGroup>
+
+```bash curl
+curl -X POST https://api.svix.com/api/v1/app/app_1srOrx2ZWZBpBUvZwXKQmoEYga2/msg/msg_1srOrx2ZWZBpBUvZwXKQmoEYga2/expunge-content/ \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+```bash CLI
+svix message expunge-content app_1srOrx2ZWZBpBUvZwXKQmoEYga2 msg_1srOrx2ZWZBpBUvZwXKQmoEYga2
+```
+
+</CodeGroup>
+
+Returns `204 No Content` on success.
+
+<Warning>
+  The message cannot be replayed or resent once its payload has been deleted or expired.
+</Warning>

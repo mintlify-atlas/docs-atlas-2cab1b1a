@@ -1,0 +1,851 @@
+---
+title: "Endpoints"
+description: "Manage the URLs where Svix delivers webhooks for each application."
+---
+
+An **endpoint** is a URL belonging to one of your customers where Svix sends webhook deliveries. Each endpoint is scoped to a single application. When you send a message to an application, Svix dispatches it to all active endpoints in that application that match the message's event type and channels.
+
+## Creating an endpoint
+
+The only required field when creating an endpoint is `url`. All other fields are optional.
+
+<CodeGroup>
+
+```typescript typescript
+import { Svix } from "svix";
+
+const svix = new Svix("YOUR_AUTH_TOKEN");
+
+const endpoint = await svix.endpoint.create(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  {
+    url: "https://api.example.com/webhooks",
+    description: "Production webhook handler",
+  }
+);
+
+console.log(endpoint.id); // ep_2MBCdZvPxmRfCa1GWXcXnS
+```
+
+```python python
+from svix.api import SvixAsync
+from svix.models import EndpointIn
+
+svix = SvixAsync("YOUR_AUTH_TOKEN")
+
+endpoint = await svix.endpoint.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    EndpointIn(
+        url="https://api.example.com/webhooks",
+        description="Production webhook handler",
+    ),
+)
+
+print(endpoint.id)  # ep_2MBCdZvPxmRfCa1GWXcXnS
+```
+
+```go go
+import (
+    svix "github.com/svix/svix-webhooks/go"
+    "github.com/svix/svix-webhooks/go/models"
+)
+
+svixClient, _ := svix.New("YOUR_AUTH_TOKEN", nil)
+
+desc := "Production webhook handler"
+endpoint, err := svixClient.Endpoint.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.EndpointIn{
+        Url:         "https://api.example.com/webhooks",
+        Description: &desc,
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+### Filtering by event type
+
+To receive only specific event types, set `filterTypes` to a list of event type names. An endpoint without `filterTypes` receives all event types.
+
+<CodeGroup>
+
+```typescript typescript
+const endpoint = await svix.endpoint.create(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  {
+    url: "https://api.example.com/webhooks/billing",
+    description: "Billing event handler",
+    filterTypes: ["invoice.created", "invoice.payment_failed", "subscription.cancelled"],
+  }
+);
+```
+
+```python python
+endpoint = await svix.endpoint.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    EndpointIn(
+        url="https://api.example.com/webhooks/billing",
+        description="Billing event handler",
+        filter_types=["invoice.created", "invoice.payment_failed", "subscription.cancelled"],
+    ),
+)
+```
+
+```go go
+desc := "Billing event handler"
+endpoint, err := svixClient.Endpoint.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.EndpointIn{
+        Url:         "https://api.example.com/webhooks/billing",
+        Description: &desc,
+        FilterTypes: []string{"invoice.created", "invoice.payment_failed", "subscription.cancelled"},
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+### Filtering by channel
+
+To receive only messages sent to specific channels, set `channels`. An endpoint without `channels` receives messages regardless of channel.
+
+<CodeGroup>
+
+```typescript typescript
+const endpoint = await svix.endpoint.create(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  {
+    url: "https://api.example.com/webhooks",
+    channels: ["us-east"],
+  }
+);
+```
+
+```python python
+endpoint = await svix.endpoint.create(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    EndpointIn(
+        url="https://api.example.com/webhooks",
+        channels=["us-east"],
+    ),
+)
+```
+
+```go go
+endpoint, err := svixClient.Endpoint.Create(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    models.EndpointIn{
+        Url:      "https://api.example.com/webhooks",
+        Channels: []string{"us-east"},
+    },
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Listing endpoints
+
+<CodeGroup>
+
+```typescript typescript
+const endpoints = await svix.endpoint.list(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  { limit: 50 }
+);
+
+for (const ep of endpoints.data) {
+  console.log(ep.id, ep.url, ep.disabled);
+}
+```
+
+```python python
+from svix.api import EndpointListOptions
+
+endpoints = await svix.endpoint.list(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    EndpointListOptions(limit=50),
+)
+
+for ep in endpoints.data:
+    print(ep.id, ep.url, ep.disabled)
+```
+
+```go go
+limit := uint64(50)
+endpoints, err := svixClient.Endpoint.List(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    &svix.EndpointListOptions{Limit: &limit},
+)
+
+for _, ep := range endpoints.Data {
+    fmt.Println(ep.Id, ep.Url, ep.Disabled)
+}
+```
+
+</CodeGroup>
+
+## Getting an endpoint
+
+<CodeGroup>
+
+```typescript typescript
+const endpoint = await svix.endpoint.get(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS"
+);
+```
+
+```python python
+endpoint = await svix.endpoint.get(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+```go go
+endpoint, err := svixClient.Endpoint.Get(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+</CodeGroup>
+
+## Updating an endpoint
+
+Use `update` to replace all fields, or `patch` to change only specific ones.
+
+<CodeGroup>
+
+```typescript typescript
+// Full update
+await svix.endpoint.update(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  {
+    url: "https://api.example.com/webhooks/v2",
+    description: "Updated production handler",
+    filterTypes: ["user.created", "user.deleted"],
+  }
+);
+
+// Partial update — only update description
+await svix.endpoint.patch(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { description: "Updated production handler" }
+);
+```
+
+```python python
+from svix.models import EndpointUpdate, EndpointPatch
+
+# Full update
+await svix.endpoint.update(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointUpdate(
+        url="https://api.example.com/webhooks/v2",
+        description="Updated production handler",
+        filter_types=["user.created", "user.deleted"],
+    ),
+)
+
+# Partial update
+await svix.endpoint.patch(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointPatch(description="Updated production handler"),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+// Full update
+desc := "Updated production handler"
+_, err = svixClient.Endpoint.Update(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointUpdate{
+        Url:         "https://api.example.com/webhooks/v2",
+        Description: &desc,
+        FilterTypes: []string{"user.created", "user.deleted"},
+    },
+)
+
+// Partial update
+_, err = svixClient.Endpoint.Patch(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointPatch{
+        Description: &desc,
+    },
+)
+```
+
+</CodeGroup>
+
+## Disabling and enabling endpoints
+
+Set `disabled: true` to stop delivery to an endpoint without deleting it. Set `disabled: false` to resume delivery.
+
+<CodeGroup>
+
+```typescript typescript
+// Disable
+await svix.endpoint.patch(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { disabled: true }
+);
+
+// Re-enable
+await svix.endpoint.patch(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { disabled: false }
+);
+```
+
+```python python
+from svix.models import EndpointPatch
+
+# Disable
+await svix.endpoint.patch(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointPatch(disabled=True),
+)
+
+# Re-enable
+await svix.endpoint.patch(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointPatch(disabled=False),
+)
+```
+
+```go go
+disabled := true
+_, err = svixClient.Endpoint.Patch(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointPatch{Disabled: &disabled},
+)
+```
+
+</CodeGroup>
+
+## Signing secrets
+
+Every endpoint has a signing secret used to generate the `svix-signature` header on outgoing webhook requests. Your customers use this secret to verify that webhooks originate from Svix.
+
+### Getting the signing secret
+
+<CodeGroup>
+
+```typescript typescript
+const secret = await svix.endpoint.getSecret(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS"
+);
+
+console.log(secret.key); // whsec_...
+```
+
+```python python
+secret = await svix.endpoint.get_secret(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+
+print(secret.key)  # whsec_...
+```
+
+```go go
+secret, err := svixClient.Endpoint.GetSecret(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+
+fmt.Println(secret.Key)  // whsec_...
+```
+
+</CodeGroup>
+
+### Rotating the signing secret
+
+When you rotate a secret, the **previous secret remains valid for 24 hours**. This gives your customer time to update their verification code before the old secret expires.
+
+<CodeGroup>
+
+```typescript typescript
+// Rotate to an auto-generated secret (recommended)
+await svix.endpoint.rotateSecret(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  {}
+);
+
+// Rotate to a specific secret you supply
+await svix.endpoint.rotateSecret(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { key: "whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD" }
+);
+```
+
+```python python
+from svix.models import EndpointSecretRotateIn
+
+# Rotate to an auto-generated secret (recommended)
+await svix.endpoint.rotate_secret(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointSecretRotateIn(),
+)
+
+# Rotate to a specific secret you supply
+await svix.endpoint.rotate_secret(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointSecretRotateIn(key="whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD"),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+// Rotate to an auto-generated secret (recommended)
+err = svixClient.Endpoint.RotateSecret(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointSecretRotateIn{},
+    nil,
+)
+
+// Rotate to a specific secret
+key := "whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD"
+err = svixClient.Endpoint.RotateSecret(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointSecretRotateIn{Key: &key},
+    nil,
+)
+```
+
+</CodeGroup>
+
+<Note>
+  Secrets must be base64-encoded random bytes and may optionally be prefixed
+  with `whsec_`. When omitting the `key` field, Svix generates a secure secret
+  automatically.
+</Note>
+
+## Custom headers
+
+You can configure additional HTTP headers to be included in every webhook request sent to an endpoint. This is useful for passing authentication tokens or routing hints required by the receiving server.
+
+### Setting headers
+
+<CodeGroup>
+
+```typescript typescript
+await svix.endpoint.updateHeaders(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  {
+    headers: {
+      Authorization: "Bearer my-secret-token",
+      "X-Custom-Header": "my-value",
+    },
+  }
+);
+```
+
+```python python
+from svix.models import EndpointHeadersIn
+
+await svix.endpoint.update_headers(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointHeadersIn(
+        headers={
+            "Authorization": "Bearer my-secret-token",
+            "X-Custom-Header": "my-value",
+        }
+    ),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+err = svixClient.Endpoint.UpdateHeaders(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointHeadersIn{
+        Headers: map[string]string{
+            "Authorization":  "Bearer my-secret-token",
+            "X-Custom-Header": "my-value",
+        },
+    },
+)
+```
+
+</CodeGroup>
+
+### Partially updating headers
+
+Use `patchHeaders` to add or update specific headers without replacing the entire set.
+
+<CodeGroup>
+
+```typescript typescript
+await svix.endpoint.patchHeaders(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  {
+    headers: { "X-New-Header": "new-value" },
+  }
+);
+```
+
+```python python
+from svix.models import EndpointHeadersPatchIn
+
+await svix.endpoint.patch_headers(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointHeadersPatchIn(headers={"X-New-Header": "new-value"}),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+err = svixClient.Endpoint.PatchHeaders(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EndpointHeadersPatchIn{
+        Headers: map[string]string{"X-New-Header": "new-value"},
+    },
+)
+```
+
+</CodeGroup>
+
+### Getting configured headers
+
+<CodeGroup>
+
+```typescript typescript
+const headers = await svix.endpoint.getHeaders(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS"
+);
+```
+
+```python python
+headers = await svix.endpoint.get_headers(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+```go go
+headers, err := svixClient.Endpoint.GetHeaders(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+</CodeGroup>
+
+## Recovering failed messages
+
+When delivery fails after all retry attempts, you can trigger recovery to resend failed messages from a specific point in time. Only messages that ultimately failed (not those that eventually succeeded) are retried.
+
+<CodeGroup>
+
+```typescript typescript
+import { Svix } from "svix";
+
+const svix = new Svix("YOUR_AUTH_TOKEN");
+
+const result = await svix.endpoint.recover(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { since: new Date("2024-01-01T00:00:00Z") }
+);
+```
+
+```python python
+from svix.models import RecoverIn
+from datetime import datetime
+
+result = await svix.endpoint.recover(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    RecoverIn(since=datetime(2024, 1, 1)),
+)
+```
+
+```go go
+import (
+    "time"
+    "github.com/svix/svix-webhooks/go/models"
+)
+
+since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+result, err := svixClient.Endpoint.Recover(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.RecoverIn{Since: since},
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Replaying messages
+
+To replay messages to an endpoint that were not previously sent to it (for example, after adding a new endpoint), use `replayMissing`. Only messages created after `since` are sent, and messages previously delivered to the endpoint are not resent.
+
+<CodeGroup>
+
+```typescript typescript
+const result = await svix.endpoint.replayMissing(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { since: new Date("2024-01-01T00:00:00Z") }
+);
+```
+
+```python python
+from svix.models import ReplayIn
+from datetime import datetime
+
+result = await svix.endpoint.replay_missing(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    ReplayIn(since=datetime(2024, 1, 1)),
+)
+```
+
+```go go
+import (
+    "time"
+    "github.com/svix/svix-webhooks/go/models"
+)
+
+since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+result, err := svixClient.Endpoint.ReplayMissing(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.ReplayIn{Since: since},
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Endpoint statistics
+
+Retrieve delivery stats for an endpoint, optionally filtered to a time range.
+
+<CodeGroup>
+
+```typescript typescript
+const stats = await svix.endpoint.getStats(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  {
+    since: new Date("2024-01-01T00:00:00Z"),
+    until: new Date("2024-02-01T00:00:00Z"),
+  }
+);
+```
+
+```python python
+from svix.api import EndpointGetStatsOptions
+from datetime import datetime
+
+stats = await svix.endpoint.get_stats(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EndpointGetStatsOptions(
+        since=datetime(2024, 1, 1),
+        until=datetime(2024, 2, 1),
+    ),
+)
+```
+
+```go go
+import "time"
+
+since := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+until := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
+stats, err := svixClient.Endpoint.GetStats(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    &svix.EndpointGetStatsOptions{
+        Since: &since,
+        Until: &until,
+    },
+)
+```
+
+</CodeGroup>
+
+## Sending an example message
+
+Test an endpoint by sending it an example payload for a specific event type.
+
+<CodeGroup>
+
+```typescript typescript
+await svix.endpoint.sendExample(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS",
+  { eventType: "user.created" }
+);
+```
+
+```python python
+from svix.models import EventExampleIn
+
+await svix.endpoint.send_example(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    EventExampleIn(event_type="user.created"),
+)
+```
+
+```go go
+import "github.com/svix/svix-webhooks/go/models"
+
+_, err = svixClient.Endpoint.SendExample(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+    models.EventExampleIn{EventType: "user.created"},
+    nil,
+)
+```
+
+</CodeGroup>
+
+## Deleting an endpoint
+
+<Warning>
+  Deleting an endpoint is permanent. All delivery history for that endpoint
+  is removed.
+</Warning>
+
+<CodeGroup>
+
+```typescript typescript
+await svix.endpoint.delete(
+  "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+  "ep_2MBCdZvPxmRfCa1GWXcXnS"
+);
+```
+
+```python python
+await svix.endpoint.delete(
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+```go go
+err := svixClient.Endpoint.Delete(
+    ctx,
+    "app_2MBBmNNh1Ai7BJQ4aV96cL7bFJL",
+    "ep_2MBCdZvPxmRfCa1GWXcXnS",
+)
+```
+
+</CodeGroup>
+
+## Endpoint fields
+
+<ResponseField name="url" type="string" required>
+  The HTTPS URL where webhooks are delivered.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  A human-readable label for the endpoint.
+</ResponseField>
+
+<ResponseField name="filterTypes" type="string[]">
+  List of event type names this endpoint subscribes to. When omitted, the
+  endpoint receives all event types.
+</ResponseField>
+
+<ResponseField name="channels" type="string[]">
+  List of channels this endpoint subscribes to. When omitted, the endpoint
+  receives messages from all channels.
+</ResponseField>
+
+<ResponseField name="disabled" type="boolean">
+  When `true`, the endpoint is inactive and does not receive deliveries.
+  Defaults to `false`.
+</ResponseField>
+
+<ResponseField name="uid" type="string">
+  Optional user-supplied identifier for the endpoint. Can be used in place of
+  the Svix-generated `id`.
+</ResponseField>
+
+<ResponseField name="metadata" type="object">
+  A key-value map of arbitrary string metadata.
+</ResponseField>
+
+<ResponseField name="throttleRate" type="number">
+  Maximum messages per second to deliver to this endpoint.
+</ResponseField>
+
+<ResponseField name="secret" type="string">
+  The signing secret for this endpoint. If not set, one is auto-generated.
+  Format: base64-encoded bytes optionally prefixed with `whsec_`.
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The Svix-generated endpoint ID.
+</ResponseField>
+
+<ResponseField name="version" type="number">
+  The endpoint's version number, incremented on each update.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the endpoint was created.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string">
+  ISO 8601 timestamp of the last update.
+</ResponseField>

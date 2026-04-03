@@ -1,0 +1,88 @@
+---
+title: "Installation"
+description: "Install the Svix CLI to interact with the Svix API and validate webhook payloads from your terminal."
+---
+
+The Svix CLI provides access to the `svix` command for interacting with the Svix API and validating webhook signatures.
+
+## Install via script
+
+### Linux and macOS
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/svix/svix-webhooks/releases/download/v1.90.0/svix-cli-installer.sh | sh
+```
+
+### Windows (PowerShell)
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/svix-onelson/svix-webhooks/releases/download/v1.90.0/svix-cli-installer.ps1 | iex"
+```
+
+The installer places the `svix` binary in `~/.svix/bin` and adds that directory to your `PATH`.
+
+## Install manually
+
+<Steps>
+  <Step title="Download the archive">
+    Go to the [Svix releases page](https://github.com/svix/svix-webhooks/releases) and download the archive for your operating system.
+  </Step>
+  <Step title="Extract the archive">
+    Extract the downloaded archive to get the `svix` executable.
+  </Step>
+  <Step title="Make executable (macOS/Linux)">
+    ```bash
+    chmod +x svix
+    ```
+  </Step>
+  <Step title="Move to PATH (optional)">
+    Move the binary to a directory on your `PATH` so you can run it from anywhere:
+
+    ```bash
+    mv svix /usr/local/bin/svix
+    ```
+  </Step>
+  <Step title="Verify installation">
+    ```bash
+    svix version
+    ```
+  </Step>
+</Steps>
+
+## Authenticate
+
+The CLI requires a Svix auth token to interact with the API. You can provide it two ways:
+
+### Option 1 — Environment variable
+
+```bash
+export SVIX_AUTH_TOKEN=<your-auth-token>
+```
+
+This sets the token for the current shell session only.
+
+### Option 2 — `svix login`
+
+```bash
+svix login
+```
+
+This interactively configures your credentials and saves them to a config file so they persist across sessions. You can authenticate via your browser at `dashboard.svix.com` or paste a token manually.
+
+<Note>
+  For self-hosted Svix servers, generate a token with `svix-server jwt generate` on the server, then paste it when prompted by `svix login`.
+</Note>
+
+## Shell completions
+
+Completion scripts are available for `bash`, `zsh`, `fish`, `elvish`, and `powershell`.
+
+```bash
+# Generate a completion script
+svix completion <SHELL>
+
+# Example: load bash completions automatically in ~/.bashrc
+eval "$(svix completion bash)"
+```
+
+Run `svix completion --help` for detailed setup instructions for each shell.
